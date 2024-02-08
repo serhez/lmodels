@@ -41,7 +41,7 @@ class Model(ABC):
             str,
             List[str],
             Iterator[str],
-            Dataset,
+            Dataset[str, str],
         ],
         max_tokens: Optional[int] = None,
     ) -> Union[str, List[str]]:
