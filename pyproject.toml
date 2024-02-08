@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true # can be removed if the packages are published on PyPI
+
 [project]
 name = "lmodels"
 version = "0.0.1"
