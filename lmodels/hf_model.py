@@ -4,7 +4,7 @@ import torch
 import transformers
 from omegaconf import MISSING
 
-from lmodels import Model
+from lmodels.model import Model
 
 
 class HFModel(Model):

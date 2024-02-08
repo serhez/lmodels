@@ -1,7 +1,7 @@
 import random
 from dataclasses import dataclass
 
-from lmodels import Model
+from lmodels.model import Model
 
 
 class MockModel(Model):
