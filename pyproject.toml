@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lmodels"
+version = "0.0.1"
+authors = [
+    { name = "Sergio Hernandez Gutierrez", email = "contact.sergiohernandez@gmail.com" },
+]
+description = "A collection of interfaces to interact with different language models."
+readme = "README.md"
+requires-python = ">=3.10, <3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mloggers",
+    "numpy",
+    "omegaconf",
+    "torch",
+    "transformers[torch]",
+    "git+https://github.com/serhez/ldata.git",
+]
+
+[project.urls]
+Homepage = "https://github.com/serhez/lmodels"
+Issues = "https://github.com/serhez/lmodels/issues"
