@@ -22,7 +22,7 @@ dependencies = [
     "omegaconf",
     "torch",
     "transformers[torch]",
-    "git+https://github.com/serhez/ldata.git",
+    "ldata@git+https://github.com/serhez/ldata.git",
 ]
 
 [project.urls]
