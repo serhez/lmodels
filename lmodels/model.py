@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, List, Optional, Union
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
 import torch
 from ldata import Dataset
@@ -103,7 +103,7 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def fine_tune(self, dataset: Dataset):
+    def fine_tune(self, dataset: Union[Dataset, List[Tuple[str, str]]]):
         """
         Fine-tunes the model.
 
