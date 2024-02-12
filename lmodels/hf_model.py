@@ -14,6 +14,11 @@ class HFModel(Model):
 
     @dataclass(kw_only=True)
     class Config(Model.Config):
+        """The configuration for the Hugging Face model."""
+
+        name = "HFModel"
+        """The name of the model."""
+
         api_token: str = MISSING
         """The API token to use for the model."""
 

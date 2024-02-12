@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
 import torch
@@ -7,12 +7,15 @@ from ldata import Dataset  # TODO: Drop this dependency with own Dataset interfa
 
 
 class Model(ABC):
-    """
-    An abstract class for interacting with a model.
-    """
+    """An abstract class for interacting with a model."""
 
     @dataclass(kw_only=True)
     class Config:
+        """The configuration for the model."""
+
+        name: str = MISSING
+        """The name of the model."""
+
         batch_size: int = 256
         """The batch size for training purposes."""
 
@@ -22,16 +25,15 @@ class Model(ABC):
         """The device which will be used to run the model."""
 
     def __init__(self, config: Config):
+        """Initializes the model with the given configuration."""
+
         self._config = config
 
     # TODO: wrap tokenizers in our own common interface class (belonging to this module)
     @property
     @abstractmethod
     def tokenizer(self) -> Any:
-        """
-        The tokenizer of the model.
-        """
-
+        """The tokenizer of the model."""
         pass
 
     # TODO: progress bar for long generations

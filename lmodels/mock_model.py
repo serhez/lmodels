@@ -11,10 +11,23 @@ class MockModel(Model):
 
     @dataclass(kw_only=True)
     class Config(Model.Config):
+        """The configuration for the mock model."""
+
+        name = "MockModel"
+        """The name of the model."""
+
         max_tokens: int = 100
         """The default value for the maximum number of tokens to generate per context string."""
 
     def __init__(self, config: Config):
+        """
+        Initializes the mock model with the given configuration.
+
+        Parameters
+        ----------
+        `config`: the configuration for the mock model.
+        """
+
         super().__init__(config)
 
     @property
