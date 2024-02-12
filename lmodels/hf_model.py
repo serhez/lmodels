@@ -22,8 +22,8 @@ class HFModel(Model):
         api_token: str = MISSING
         """The API token to use for the model."""
 
-        model_name: str = MISSING
-        """The name of the model to use. Must be listed as a Hugging Face model."""
+        architecture: str = MISSING
+        """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
 
         do_sample: bool = True
         """Whether to sample from the model's output."""
@@ -46,12 +46,12 @@ class HFModel(Model):
         super().__init__(config)
 
         self._tokenizer = transformers.AutoTokenizer.from_pretrained(
-            config.model_name, token=config.api_token
+            config.architecture, token=config.api_token
         )
         self._pipeline = transformers.pipeline(
             "text-generation",
             token=config.api_token,
-            model=config.model_name,
+            model=config.architecture,
             torch_dtype=torch.float16,
             device_map=config.device,
         )

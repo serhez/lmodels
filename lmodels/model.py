@@ -19,9 +19,7 @@ class Model(ABC):
         batch_size: int = 256
         """The batch size for training purposes."""
 
-        device: torch.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
+        device: str = "cuda" if torch.cuda.is_available() else "cpu"
         """The device which will be used to run the model."""
 
     def __init__(self, config: Config):
