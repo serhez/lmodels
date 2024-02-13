@@ -16,7 +16,7 @@ class HFModel(Model):
     class Config(Model.Config):
         """The configuration for the Hugging Face model."""
 
-        name = "HFModel"
+        name: str = "HFModel"
         """The name of the model."""
 
         api_token: str = MISSING

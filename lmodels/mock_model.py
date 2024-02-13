@@ -13,7 +13,7 @@ class MockModel(Model):
     class Config(Model.Config):
         """The configuration for the mock model."""
 
-        name = "MockModel"
+        name: str = "MockModel"
         """The name of the model."""
 
         max_tokens: int = 100
