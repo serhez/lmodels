@@ -26,6 +26,8 @@ class Model(ABC):
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
         """The device which will be used to run the model."""
 
+        debug: bool = False
+
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initialize the model.
