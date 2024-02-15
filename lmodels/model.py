@@ -4,6 +4,7 @@ from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
 import torch
 from ldata import Dataset  # TODO: Drop this dependency with own Dataset interface
+from mloggers import Logger
 
 
 class Model(ABC):
@@ -16,16 +17,30 @@ class Model(ABC):
         name: str = MISSING
         """The name of the model."""
 
-        batch_size: int = 256
+        train_batch_size: int = 64
         """The batch size for training purposes."""
+
+        generate_batch_size: int = 64
+        """The batch size for inference purposes."""
 
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
         """The device which will be used to run the model."""
 
-    def __init__(self, config: Config):
-        """Initializes the model with the given configuration."""
+    def __init__(self, config: Config, logger: Optional[Logger] = None):
+        """
+        Initialize the model.
+
+        ### Parameters
+        ----------
+        `config`: the configuration of the model.
+        [optional] `logger`: the logger to be used.
+        """
 
         self._config = config
+        self._logger = logger
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self._config.name})"
 
     # TODO: wrap tokenizers in our own common interface class (belonging to this module)
     @property
@@ -48,6 +63,7 @@ class Model(ABC):
         """
         Generates the next given number of tokens in the sequence.
         It has similar functionality to HuggingFace's `pipeline` method.
+        This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
 
         ### Parameters
         ----------
@@ -60,24 +76,27 @@ class Model(ABC):
         -------
         The generated tokens.
         - If `context` is a string, the return value is a string.
-        - If `context` is a list or iterator of strings or a `Dataset`, the return value is a list of strings.
+        - If `context` is a list, iterator of strings or `Dataset`, the return value is a list of strings.
         """
 
         if isinstance(context, str):
             return self._generate_impl(context, max_tokens)
+        elif isinstance(context, Dataset):
+            context = list(context.test_set.inputs)
+        elif not isinstance(context, list) and not isinstance(context, Iterator):
+            raise ValueError(
+                f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
+            )
 
-        if isinstance(context, list):
-            return [self._generate_impl(c, max_tokens) for c in context]
+        outputs = []
+        for i, c in enumerate(context):
+            if self._logger:
+                self._logger.info(
+                    f"[{self.__class__.__name__}] Generating {i}/{len(context)}"
+                )
+            outputs.append(self._generate_impl(c, max_tokens))
 
-        if isinstance(context, Iterator):
-            return [self._generate_impl(c, max_tokens) for c in context]
-
-        if isinstance(context, Dataset):
-            return [self._generate_impl(c, max_tokens) for c in context.test_set]
-
-        raise ValueError(
-            f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
-        )
+        return outputs
 
     def _call_impl(self, *args, **kwargs):
         return self.generate(*args, **kwargs)

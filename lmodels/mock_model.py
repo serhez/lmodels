@@ -1,5 +1,8 @@
 import random
 from dataclasses import dataclass
+from typing import Optional
+
+from mloggers import Logger
 
 from lmodels.model import Model
 
@@ -19,16 +22,17 @@ class MockModel(Model):
         max_tokens: int = 100
         """The default value for the maximum number of tokens to generate per context string."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initializes the mock model with the given configuration.
 
         Parameters
         ----------
         `config`: the configuration for the mock model.
+        [optional] `logger`: the logger to be used.
         """
 
-        super().__init__(config)
+        super().__init__(config, logger)
 
     @property
     def tokenizer(self) -> None:

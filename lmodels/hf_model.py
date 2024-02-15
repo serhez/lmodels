@@ -1,8 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
+from typing import Iterator, List, Optional, Union
 
 import torch
 import transformers
-from omegaconf import MISSING
+from ldata import Dataset
+from mloggers import Logger
 
 from lmodels.model import Model
 
@@ -34,16 +36,17 @@ class HFModel(Model):
         num_return_sequences: int = 1
         """The number of sequences to return when sampling."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initializes the Hugging Face model.
 
         ### Parameters
         ----------
         `config`: the configuration for the Hugging Face model.
+        [optional] `logger`: the logger to be used.
         """
 
-        super().__init__(config)
+        super().__init__(config, logger)
 
         self._tokenizer = transformers.AutoTokenizer.from_pretrained(
             config.architecture, token=config.api_token
@@ -55,25 +58,69 @@ class HFModel(Model):
             torch_dtype=torch.float16,
             device_map=config.device,
         )
-        self._do_sample = config.do_sample
-        self._top_k = config.top_k
-        self._num_return_sequences = config.num_return_sequences
 
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         return self._tokenizer
 
-    def _generate_impl(self, context: str, max_tokens: int = 1) -> str:
-        generated_tokens = self._pipeline(
+    def generate(
+        self,
+        context: Union[
+            str,
+            List[str],
+            Iterator[str],
+            Dataset[str, str],
+        ],
+        max_tokens: Optional[int] = None,
+    ) -> Union[str, List[str]]:
+        """
+        Generates the next given number of tokens in the sequence.
+        It has similar functionality to HuggingFace's `pipeline` method.
+
+        ### Parameters
+        ----------
+        `context`: the context/s to generate from.
+        - If it is a `Dataset`, the model will generate from all samples in the test set.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If None, the model will generate tokens until the EOS token is produced.
+
+        ### Returns
+        -------
+        The generated tokens.
+        - If `context` is a string, the return value is a string.
+        - If `context` is a list or iterator of strings or a `Dataset`, the return value is a list of strings.
+        """
+
+        if isinstance(context, str):
+            return self._generate_impl(context, max_tokens)
+        elif isinstance(context, Dataset):
+            context = list(context.test_set.inputs)
+        elif isinstance(context, Iterator):
+            context = list(context)
+        elif not isinstance(context, list):
+            raise ValueError(
+                f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
+            )
+
+        return self._pipeline(
             context,
-            do_sample=self._do_sample,
-            top_k=self._top_k,
-            num_return_sequences=self._num_return_sequences,
+            batch_size=self._config.generate_batch_size,
+            do_sample=self._config.do_sample,
+            top_k=self._config.top_k,
+            num_return_sequences=self._config.num_return_sequences,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )[0]["generated_text"][len(context) :]
 
-        return generated_tokens
+    def _generate_impl(self, context: str, max_tokens: int = 1) -> str:
+        return self._pipeline(
+            context,
+            do_sample=self._config.do_sample,
+            top_k=self._config.top_k,
+            num_return_sequences=self._config.num_return_sequences,
+            eos_token_id=self._tokenizer.eos_token_id,
+            max_new_tokens=max_tokens,
+        )[0]["generated_text"][len(context) :]
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the mock model.")
