@@ -107,7 +107,7 @@ class MockModel(Model):
             output = " ".join(np.random.choice(words, size=max_tokens))
 
         if self._logger and self._config.debug:
-            self._logger.debug({"Model output": output})
+            self._logger.debug(f"Model output: {output}")
 
         return output
 

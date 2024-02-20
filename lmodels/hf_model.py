@@ -102,7 +102,7 @@ class HFModel(Model):
                 f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
             )
 
-        return self._pipeline(
+        outputs = self._pipeline(
             context,
             batch_size=self._config.generate_batch_size,
             do_sample=self._config.do_sample,
@@ -112,8 +112,15 @@ class HFModel(Model):
             max_new_tokens=max_tokens,
         )[0]["generated_text"][len(context) :]
 
+        if self._logger and self._config.debug:
+            self._logger.debug(
+                {"Model batch context": context, "Model batch output": outputs}
+            )
+
+        return outputs
+
     def _generate_impl(self, context: str, max_tokens: int = 1) -> str:
-        return self._pipeline(
+        output = self._pipeline(
             context,
             do_sample=self._config.do_sample,
             top_k=self._config.top_k,
@@ -121,6 +128,11 @@ class HFModel(Model):
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )[0]["generated_text"][len(context) :]
+
+        if self._logger and self._config.debug:
+            self._logger.debug({"Model context": context, "Model output": output})
+
+        return output
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the mock model.")
