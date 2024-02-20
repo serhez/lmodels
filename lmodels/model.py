@@ -27,6 +27,7 @@ class Model(ABC):
         """The device which will be used to run the model."""
 
         debug: bool = False
+        """Whether to use debug-level logs."""
 
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
