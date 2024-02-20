@@ -35,7 +35,7 @@ class MockModel(Model):
         """
         Initializes the mock model with the given configuration.
 
-        Parameters
+        ### Parameters
         ----------
         `config`: the configuration for the mock model.
         [optional] `logger`: the logger to be used.
@@ -46,7 +46,7 @@ class MockModel(Model):
         - If `outputs` are not provided, this parameter will be ignored.
         - If not provided, a uniform distribution will be used to sample the `outputs` (if they are given).
 
-        Raises
+        ### Raises
         ------
         `ValueError`: the `probs` do not add up to 1 or do not have the same length as the `outputs`.
         """
@@ -107,7 +107,12 @@ class MockModel(Model):
             output = " ".join(np.random.choice(words, size=max_tokens))
 
         if self._logger and self._config.debug:
-            self._logger.debug(f"Model output: {output}")
+            self._logger.debug(
+                {
+                    "[MockModel.generate]": None,
+                    "Output": output,
+                }
+            )
 
         return output
 

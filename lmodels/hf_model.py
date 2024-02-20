@@ -114,7 +114,11 @@ class HFModel(Model):
 
         if self._logger and self._config.debug:
             self._logger.debug(
-                {"Model batch context": context, "Model batch output": outputs}
+                {
+                    "[HFModel.generate]": None,
+                    "Batch context": context,
+                    "Batch output": outputs,
+                }
             )
 
         return outputs
@@ -130,7 +134,13 @@ class HFModel(Model):
         )[0]["generated_text"][len(context) :]
 
         if self._logger and self._config.debug:
-            self._logger.debug({"Model context": context, "Model output": output})
+            self._logger.debug(
+                {
+                    "[HFModel.generate]": None,
+                    "Context": context,
+                    "Output": output,
+                }
+            )
 
         return output
 
