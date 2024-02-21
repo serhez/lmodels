@@ -42,6 +42,9 @@ class Model(ABC):
         self._config = config
         self._logger = logger
 
+        if self._logger and self._config.debug:
+            self._logger.debug({"Model config": config})
+
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self._config.name})"
 
