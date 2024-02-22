@@ -98,7 +98,7 @@ class MockModel(Model):
     def tokenizer(self) -> None:
         return None
 
-    def _generate_impl(self, _, max_tokens: Optional[int] = None) -> str:
+    def _generate_impl(self, _, max_tokens: int = 500) -> str:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
 

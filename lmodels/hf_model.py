@@ -71,7 +71,7 @@ class HFModel(Model):
             Iterator[str],
             Dataset[str, str],
         ],
-        max_tokens: Optional[int] = None,
+        max_tokens: int = 500,
     ) -> Union[str, List[str]]:
         """
         Generates the next given number of tokens in the sequence.
@@ -82,7 +82,6 @@ class HFModel(Model):
         `context`: the context/s to generate from.
         - If it is a `Dataset`, the model will generate from all samples in the test set.
         `max_tokens`: the maximum number of tokens to generate per context string.
-        - If None, the model will generate tokens until the EOS token is produced.
 
         ### Returns
         -------
@@ -123,7 +122,7 @@ class HFModel(Model):
 
         return outputs
 
-    def _generate_impl(self, context: str, max_tokens: Optional[int] = None) -> str:
+    def _generate_impl(self, context: str, max_tokens: int = 500) -> str:
         output = self._pipeline(
             context,
             do_sample=self._config.do_sample,

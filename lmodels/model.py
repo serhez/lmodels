@@ -64,7 +64,7 @@ class Model(ABC):
             Iterator[str],
             Dataset[str, str],
         ],
-        max_tokens: Optional[int] = None,
+        max_tokens: int = 500,
     ) -> Union[str, List[str]]:
         """
         Generates the next given number of tokens in the sequence.
@@ -76,7 +76,6 @@ class Model(ABC):
         `context`: the context/s to generate from.
         - If it is a `Dataset`, the model will generate from all samples in the test set.
         `max_tokens`: the maximum number of tokens to generate per context string.
-        - If None, the model will generate tokens until the EOS token is produced.
 
         ### Returns
         -------
@@ -110,7 +109,7 @@ class Model(ABC):
     __call__: Callable[..., Any] = _call_impl
 
     @abstractmethod
-    def _generate_impl(self, context: str, max_tokens: Optional[int] = None) -> str:
+    def _generate_impl(self, context: str, max_tokens: int = 500) -> str:
         """
         The model's internal implementation of `generate` acting on a single context string.
 
