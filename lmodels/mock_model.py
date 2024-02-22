@@ -98,7 +98,10 @@ class MockModel(Model):
     def tokenizer(self) -> None:
         return None
 
-    def _generate_impl(self, _, max_tokens: int) -> str:
+    def _generate_impl(self, _, max_tokens: Optional[int] = None) -> str:
+        if max_tokens is None:
+            max_tokens = self._config.max_tokens
+
         if self._outputs:
             output = np.random.choice(self._outputs, p=self._probs)
         else:

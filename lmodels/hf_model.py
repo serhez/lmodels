@@ -123,7 +123,7 @@ class HFModel(Model):
 
         return outputs
 
-    def _generate_impl(self, context: str, max_tokens: int = 1) -> str:
+    def _generate_impl(self, context: str, max_tokens: Optional[int] = None) -> str:
         output = self._pipeline(
             context,
             do_sample=self._config.do_sample,
