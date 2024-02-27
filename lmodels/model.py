@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 import torch
 from ldata import Dataset  # TODO: Drop this dependency with own Dataset interface
 from mloggers import Logger
+from mloggers.progress import log_progress
 
 
 class Model(ABC):
@@ -55,7 +56,6 @@ class Model(ABC):
         """The tokenizer of the model."""
         pass
 
-    # TODO: progress bar for long generations
     def generate(
         self,
         context: Union[
@@ -65,7 +65,8 @@ class Model(ABC):
             Dataset[str, str],
         ],
         max_tokens: int = 500,
-    ) -> Union[str, List[str]]:
+        n_samples: int = 1,
+    ) -> List[List[str]]:
         """
         Generates the next given number of tokens in the sequence.
         It has similar functionality to HuggingFace's `pipeline` method.
@@ -76,30 +77,35 @@ class Model(ABC):
         `context`: the context/s to generate from.
         - If it is a `Dataset`, the model will generate from all samples in the test set.
         `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
 
         ### Returns
         -------
         The generated tokens.
-        - If `context` is a string, the return value is a string.
-        - If `context` is a list, iterator of strings or `Dataset`, the return value is a list of strings.
+        - The return type is a list of lists of strings of size [`len(context)`, `n_samples`]; if `context` is a string, then `len(context)` is 1.
         """
 
         if isinstance(context, str):
             return self._generate_impl(context, max_tokens)
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
-        elif not isinstance(context, list) and not isinstance(context, Iterator):
+        elif isinstance(context, Iterator):
+            context = list(context)
+        elif not isinstance(context, list):
             raise ValueError(
                 f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
             )
 
         outputs = []
-        for i, c in enumerate(context):
-            if self._logger:
-                self._logger.info(
-                    f"[{self.__class__.__name__}] Generating {i}/{len(context)}"
-                )
-            outputs.append(self._generate_impl(c, max_tokens))
+        if self._logger:
+            self._logger.info(
+                f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
+            )
+        for i in log_progress(range(len(context))):
+            c_outputs = []
+            for _ in range(n_samples):
+                c_outputs.append(self._generate_impl(context[i], max_tokens))
+            outputs.append(c_outputs)
 
         return outputs
 

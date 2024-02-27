@@ -33,9 +33,6 @@ class HFModel(Model):
         top_k: int = 10
         """The number of top tokens to consider when sampling."""
 
-        num_return_sequences: int = 1
-        """The number of sequences to return when sampling."""
-
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initializes the Hugging Face model.
@@ -72,7 +69,8 @@ class HFModel(Model):
             Dataset[str, str],
         ],
         max_tokens: int = 500,
-    ) -> Union[str, List[str]]:
+        n_samples: int = 1,
+    ) -> List[List[str]]:
         """
         Generates the next given number of tokens in the sequence.
         It has similar functionality to HuggingFace's `pipeline` method.
@@ -82,16 +80,17 @@ class HFModel(Model):
         `context`: the context/s to generate from.
         - If it is a `Dataset`, the model will generate from all samples in the test set.
         `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+        - You should consider setting `Config.do_sample = True` if you want `n_samples > 1`.
 
         ### Returns
         -------
         The generated tokens.
-        - If `context` is a string, the return value is a string.
-        - If `context` is a list or iterator of strings or a `Dataset`, the return value is a list of strings.
+        - The return type is a list of lists of strings of size [`len(context)`, `n_samples`]; if `context` is a string, then `len(context)` is 1.
         """
 
         if isinstance(context, str):
-            return self._generate_impl(context, max_tokens)
+            return self._generate_impl(context, max_tokens, n_samples)
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
         elif isinstance(context, Iterator):
@@ -106,10 +105,14 @@ class HFModel(Model):
             batch_size=self._config.generate_batch_size,
             do_sample=self._config.do_sample,
             top_k=self._config.top_k,
-            num_return_sequences=self._config.num_return_sequences,
+            num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
-        )[0]["generated_text"][len(context) :]
+        )
+        outputs = [
+            [sample["generated_text"][len(context) :] for sample in output]
+            for output in outputs
+        ]
 
         if self._logger and self._config.debug:
             self._logger.debug(
@@ -122,15 +125,18 @@ class HFModel(Model):
 
         return outputs
 
-    def _generate_impl(self, context: str, max_tokens: int = 500) -> str:
+    def _generate_impl(
+        self, context: str, max_tokens: int = 500, n_samples: int = 1
+    ) -> str:
         output = self._pipeline(
             context,
             do_sample=self._config.do_sample,
             top_k=self._config.top_k,
-            num_return_sequences=self._config.num_return_sequences,
+            num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
-        )[0]["generated_text"][len(context) :]
+        )
+        output = [sample["generated_text"][len(context) :] for sample in output]
 
         if self._logger and self._config.debug:
             self._logger.debug(
