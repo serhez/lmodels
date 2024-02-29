@@ -94,7 +94,7 @@ class HFModel(Model):
         """
 
         if isinstance(context, str):
-            return self._generate_impl(context, max_tokens, n_samples)
+            return np.array([self._generate_impl(context, max_tokens, n_samples)])
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
         elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
