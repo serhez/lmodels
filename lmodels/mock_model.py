@@ -25,12 +25,24 @@ class MockModel(Model):
         max_tokens: int = 100
         """The default value for the maximum number of tokens to generate per context string."""
 
+        outputs: Optional[List[str]] = None
+        """
+        The list of possible outputs to use.
+        - If not provided, sequences of random tokens of at most `max_tokens` length will be output.
+        """
+
+        probs: Optional[List[float]] = None
+        """
+        The probabilities for each of the `outputs`."
+        - If provided, they must add up to 1 and have the same length as the `outputs`.
+        - If `outputs` are not provided, this parameter will be ignored.
+        - If not provided, a uniform distribution will be used to sample the `outputs` (if they are given).
+        """
+
     def __init__(
         self,
         config: Config,
         logger: Optional[Logger] = None,
-        outputs: Optional[List[str]] = None,
-        probs: Optional[List[float]] = None,
     ):
         """
         Initializes the mock model with the given configuration.
@@ -39,12 +51,6 @@ class MockModel(Model):
         ----------
         `config`: the configuration for the mock model.
         [optional] `logger`: the logger to be used.
-        [optional] `outputs`: the list of possible outputs to use.
-        - If not provided, sequences of random tokens of at most `config.max_tokens` length will be output.
-        [optional] `probs`: the probabilities for each of the `outputs`.
-        - If provided, they must add up to 1 and have the same length as the `outputs`.
-        - If `outputs` are not provided, this parameter will be ignored.
-        - If not provided, a uniform distribution will be used to sample the `outputs` (if they are given).
 
         ### Raises
         ------
@@ -53,20 +59,20 @@ class MockModel(Model):
 
         super().__init__(config, logger)
 
-        if outputs is not None and probs is not None:
-            if len(outputs) != len(probs):
+        if config.outputs is not None and config.probs is not None:
+            if len(config.outputs) != len(config.probs):
                 raise ValueError(
-                    f"The lengths of `outputs` ({len(outputs)} and `probs` ({len(probs)}) must be the same"
+                    f"The lengths of `outputs` ({len(config.outputs)} and `probs` ({len(config.probs)}) must be the same"
                 )
-            elif np.sum(probs) != 1.0:
+            elif np.sum(config.probs) != 1.0:
                 raise ValueError(
-                    f"`probs` add up to {np.sum(probs)}; they must add up to 1.0"
+                    f"`probs` add up to {np.sum(config.probs)}; they must add up to 1.0"
                 )
 
-        self._outputs = outputs
-        self._probs = probs
+        self._outputs = config.outputs
+        self._probs = config.probs
 
-        if not outputs:
+        if not self._outputs:
             if self._logger:
                 self._logger.warning(
                     "No outputs were provided. The model will generate random sequences."
