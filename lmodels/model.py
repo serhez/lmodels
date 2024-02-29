@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import MISSING, dataclass
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
+import numpy as np
+import numpy.typing as npt
 import torch
 from ldata import Dataset  # TODO: Drop this dependency with own Dataset interface
 from mloggers import Logger
@@ -61,6 +63,7 @@ class Model(ABC):
         context: Union[
             str,
             List[str],
+            npt.NDArray[np.str_],
             Iterator[str],
             Dataset[str, str],
         ],
@@ -89,7 +92,7 @@ class Model(ABC):
             return self._generate_impl(context, max_tokens)
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
-        elif isinstance(context, Iterator):
+        elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
             context = list(context)
         elif not isinstance(context, list):
             raise ValueError(

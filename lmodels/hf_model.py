@@ -1,6 +1,8 @@
 from dataclasses import MISSING, dataclass
 from typing import Iterator, List, Optional, Union
 
+import numpy as np
+import numpy.typing as npt
 import torch
 import transformers
 from ldata import Dataset
@@ -65,6 +67,7 @@ class HFModel(Model):
         context: Union[
             str,
             List[str],
+            npt.NDArray[np.str_],
             Iterator[str],
             Dataset[str, str],
         ],
@@ -93,7 +96,7 @@ class HFModel(Model):
             return self._generate_impl(context, max_tokens, n_samples)
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
-        elif isinstance(context, Iterator):
+        elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
             context = list(context)
         elif not isinstance(context, list):
             raise ValueError(
