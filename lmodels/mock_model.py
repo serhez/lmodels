@@ -121,12 +121,3 @@ class MockModel(Model):
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the mock model.")
-
-
-try:
-    from hydra.core.config_store import ConfigStore
-
-    cs = ConfigStore.instance()
-    cs.store(name="base_mock_model", node=MockModel.Config)
-except ModuleNotFoundError:
-    pass
