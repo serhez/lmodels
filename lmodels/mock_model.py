@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import numpy as np
+import numpy.typing as npt
 import requests
 from mloggers import Logger
 
@@ -21,9 +22,6 @@ class MockModel(Model):
 
         name: str = "MockModel"
         """The name of the model."""
-
-        max_tokens: int = 100
-        """The default value for the maximum number of tokens to generate per context string."""
 
         outputs: Optional[List[str]] = None
         """
@@ -104,16 +102,23 @@ class MockModel(Model):
     def tokenizer(self) -> None:
         return None
 
-    def _generate_impl(self, _, max_tokens: int = 500) -> str:
+    def _generate_impl(
+        self, _, n_samples: int = 1, max_tokens: Optional[int] = None
+    ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
 
         if self._outputs:
-            output = np.random.choice(self._outputs, p=self._probs)
+            output = np.random.choice(self._outputs, size=(n_samples,), p=self._probs)
         else:
             with open("mock_model_cached_words.txt", "r") as file:
                 words = file.readlines()
-            output = " ".join(np.random.choice(words, size=max_tokens))
+            output = np.array(
+                [
+                    " ".join(np.random.choice(words, size=max_tokens))
+                    for _ in range(n_samples)
+                ]
+            )
 
         if self._logger and self._config.debug:
             self._logger.debug(

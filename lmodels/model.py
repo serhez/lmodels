@@ -20,6 +20,9 @@ class Model(ABC):
         name: str = MISSING
         """The name of the model."""
 
+        default_max_tokens: int = 100
+        """The default value for the maximum number of tokens to generate per context string."""
+
         train_batch_size: int = 64
         """The batch size for training purposes."""
 
@@ -67,9 +70,9 @@ class Model(ABC):
             Iterator[str],
             Dataset[str, str],
         ],
-        max_tokens: int = 500,
         n_samples: int = 1,
-    ) -> List[List[str]]:
+        max_tokens: Optional[int] = None,
+    ) -> npt.NDArray[np.str_]:
         """
         Generates the next given number of tokens in the sequence.
         It has similar functionality to HuggingFace's `pipeline` method.
@@ -85,11 +88,11 @@ class Model(ABC):
         ### Returns
         -------
         The generated tokens.
-        - The return type is a list of lists of strings of size [`len(context)`, `n_samples`]; if `context` is a string, then `len(context)` is 1.
+        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`]; if `context` is a single string, then `len(context)` is 1.
         """
 
         if isinstance(context, str):
-            return self._generate_impl(context, max_tokens)
+            return np.array([self._generate_impl(context, max_tokens, n_samples)])
         elif isinstance(context, Dataset):
             context = list(context.test_set.inputs)
         elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
@@ -99,7 +102,7 @@ class Model(ABC):
                 f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
             )
 
-        outputs = []
+        outputs = np.zeros((len(context), n_samples), dtype=np.str_)
         if self._logger:
             self._logger.info(
                 f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
@@ -118,19 +121,22 @@ class Model(ABC):
     __call__: Callable[..., Any] = _call_impl
 
     @abstractmethod
-    def _generate_impl(self, context: str, max_tokens: int = 500) -> str:
+    def _generate_impl(
+        self, context: str, n_samples: int = 1, max_tokens: Optional[int] = None
+    ) -> npt.NDArray[np.str_]:
         """
         The model's internal implementation of `generate` acting on a single context string.
 
         ### Parameters
         ----------
         `context`: the context to generate from.
+        `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
-        - If None, the model will generate tokens until the EOS token is produced.
+        - If `None`, `config.default_max_tokens` will be used.
 
         ### Returns
         -------
-        The generated tokens.
+        A `numpy.NDArray` with the generated tokens for each sample.
         """
 
         pass

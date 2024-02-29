@@ -71,9 +71,9 @@ class HFModel(Model):
             Iterator[str],
             Dataset[str, str],
         ],
-        max_tokens: int = 500,
         n_samples: int = 1,
-    ) -> List[List[str]]:
+        max_tokens: Optional[int] = None,
+    ) -> npt.NDArray[np.str_]:
         """
         Generates the next given number of tokens in the sequence.
         It has similar functionality to HuggingFace's `pipeline` method.
@@ -82,14 +82,15 @@ class HFModel(Model):
         ----------
         `context`: the context/s to generate from.
         - If it is a `Dataset`, the model will generate from all samples in the test set.
-        `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
         - You should consider setting `Config.do_sample = True` if you want `n_samples > 1`.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, `config.default_max_tokens` will be used.
 
         ### Returns
         -------
         The generated tokens.
-        - The return type is a list of lists of strings of size [`len(context)`, `n_samples`]; if `context` is a string, then `len(context)` is 1.
+        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`]; if `context` is a single string, then `len(context)` is 1.
         """
 
         if isinstance(context, str):
@@ -103,6 +104,9 @@ class HFModel(Model):
                 f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
             )
 
+        if max_tokens is None:
+            max_tokens = self._config.max_tokens
+
         outputs = self._pipeline(
             context,
             batch_size=self._config.generate_batch_size,
@@ -112,10 +116,14 @@ class HFModel(Model):
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )
-        outputs = [
-            [sample["generated_text"][len(context) :] for sample in output]
-            for output in outputs
-        ]
+        outputs = np.array(
+            [
+                np.array(
+                    [sample["generated_text"][len(context) :] for sample in output]
+                )
+                for output in outputs
+            ]
+        )
 
         if self._logger and self._config.debug:
             self._logger.debug(
@@ -130,7 +138,10 @@ class HFModel(Model):
 
     def _generate_impl(
         self, context: str, max_tokens: int = 500, n_samples: int = 1
-    ) -> str:
+    ) -> npt.NDArray[np.str_]:
+        if max_tokens is None:
+            max_tokens = self._config.max_tokens
+
         output = self._pipeline(
             context,
             do_sample=self._config.do_sample,
@@ -139,7 +150,9 @@ class HFModel(Model):
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )
-        output = [sample["generated_text"][len(context) :] for sample in output]
+        output = np.array(
+            [sample["generated_text"][len(context) :] for sample in output]
+        )
 
         if self._logger and self._config.debug:
             self._logger.debug(
