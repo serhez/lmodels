@@ -1,6 +1,6 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Iterator, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -75,50 +75,41 @@ class HFModel(Model):
     def generate(
         self,
         context: Union[
-            str,
-            List[str],
-            npt.NDArray[np.str_],
-            Iterator[str],
-            Dataset[str, str],
+            str,  # single message
+            List[str],  # single conversation
+            List[
+                List[str]
+            ],  # multiple messages/conversations (depending on inner list length)
+            Dict[str, str],  # single message with model-specific fields
+            List[Dict[str, str]],  # single conversation with model-specific fields
+            List[
+                List[Dict[str, str]]
+            ],  # multiple conversations with model-specific fields
+            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
+            Dataset[
+                str, str
+            ],  # equivalent to List[List[str]] where the length of each inner list is 1
         ],
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
+        unsafe: bool = False,
     ) -> npt.NDArray[np.str_]:
-        """
-        Generates the next given number of tokens in the sequence.
-        It has similar functionality to HuggingFace's `pipeline` method.
+        context = self._parse_context(context, unsafe=unsafe)
+        if len(context) == 1:
+            return np.array([self._generate_impl(context[0], n_samples, max_tokens)])
 
-        ### Parameters
-        ----------
-        `context`: the context/s to generate from.
-        - If it is a `Dataset`, the model will generate from all samples in the test set.
-        `n_samples`: the number of samples to generate for each context string.
-        - You should consider setting `Config.do_sample = True` if you want `n_samples > 1`.
-        `max_tokens`: the maximum number of tokens to generate per context string.
-        - If `None`, `config.default_max_tokens` will be used.
-
-        ### Returns
-        -------
-        The generated tokens.
-        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`]; if `context` is a single string, then `len(context)` is 1.
-        """
-
-        if isinstance(context, str):
-            return np.array([self._generate_impl(context, max_tokens, n_samples)])
-        elif isinstance(context, Dataset):
-            context = list(context.test_set.inputs)
-        elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
-            context = list(context)
-        elif not isinstance(context, list):
-            raise ValueError(
-                f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
-            )
+        inputs = []
+        for conversation in context:
+            input = conversation[0]["content"]
+            for i in range(1, len(conversation)):
+                input += "\n" + conversation[i]["content"]
+            inputs.append(input)
 
         if max_tokens is None:
             max_tokens = self._config.max_tokens
 
         outputs = self._pipeline(
-            context,
+            inputs,
             batch_size=self._config.generate_batch_size,
             do_sample=self._config.do_sample,
             top_k=self._config.top_k,
@@ -126,50 +117,58 @@ class HFModel(Model):
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )
-        outputs = np.array(
-            [
-                np.array(
-                    [sample["generated_text"][len(context) :] for sample in output]
-                )
-                for output in outputs
-            ]
-        )
+
+        outputs = np.empty((len(inputs), n_samples), dtype=np.str_)
+        for i, output in enumerate(outputs):
+            for j, sample in enumerate(output):
+                outputs[i, j] = sample["generated_text"][len(inputs[i]) :]
 
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
                     "[HFModel.generate]": None,
                     "Batch context": context,
+                    "Batch input": inputs,
                     "Batch output": outputs,
+                    "n_samples": n_samples,
+                    "max_tokens": max_tokens,
                 }
             )
 
         return outputs
 
     def _generate_impl(
-        self, context: str, max_tokens: int = 500, n_samples: int = 1
+        self,
+        context: List[Dict[str, str]],
+        n_samples: int = 1,
+        max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
 
+        input = context[0]["content"]
+        for i in range(1, len(context)):
+            input += "\n" + context[i]["content"]
+
         output = self._pipeline(
-            context,
+            input,
             do_sample=self._config.do_sample,
             top_k=self._config.top_k,
             num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
         )
-        output = np.array(
-            [sample["generated_text"][len(context) :] for sample in output]
-        )
+        output = np.array([sample["generated_text"][len(input) :] for sample in output])
 
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
                     "[HFModel.generate]": None,
                     "Context": context,
+                    "Input": input,
                     "Output": output,
+                    "n_samples": n_samples,
+                    "max_tokens": max_tokens,
                 }
             )
 

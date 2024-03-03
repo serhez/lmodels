@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import MISSING, dataclass
-from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -61,57 +61,173 @@ class Model(ABC):
         """The tokenizer of the model."""
         pass
 
-    def generate(
+    def _parse_context(
         self,
         context: Union[
-            str,
-            List[str],
-            npt.NDArray[np.str_],
-            Iterator[str],
-            Dataset[str, str],
+            str,  # single message
+            List[str],  # single conversation
+            List[
+                List[str]
+            ],  # multiple messages/conversations (depending on inner list length)
+            Dict[str, str],  # single message with model-specific fields
+            List[Dict[str, str]],  # single conversation with model-specific fields
+            List[
+                List[Dict[str, str]]
+            ],  # multiple conversations with model-specific fields
+            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
+            Dataset[
+                str, str
+            ],  # equivalent to List[List[str]] where the length of each inner list is 1
         ],
-        n_samples: int = 1,
-        max_tokens: Optional[int] = None,
-    ) -> npt.NDArray[np.str_]:
+        unsafe: bool = False,
+    ) -> List[List[Dict[str, str]]]:
         """
-        Generates the next given number of tokens in the sequence.
-        It has similar functionality to HuggingFace's `pipeline` method.
-        This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
+        Parses the context input.
+        Check `generate`'s signature for allowed input types and their meanings.
 
         ### Parameters
         ----------
-        `context`: the context/s to generate from.
-        - If it is a `Dataset`, the model will generate from all samples in the test set.
+        `context`: the context to parse.
+        `unsafe`: whether to bypass expensive input validations.
+
+        ### Returns
+        -------
+        The parsed context, as a list of list of dictionaries.
+        - If the length of the outer list is 1, then the context is a single message/conversation.
+
+        ### Raises
+        -------
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        if isinstance(context, list):
+            assert len(context) > 0, "the context list must not be empty."
+
+        # Single message
+        if isinstance(context, str):
+            return [[{"content": context}]]
+        elif isinstance(context, dict):  # with model-specific fields
+            if "content" not in context:
+                raise ValueError(
+                    "The message dictionary must contain a `content` field."
+                )
+            return [[context]]
+
+        # Single conversation
+        elif (isinstance(context, np.ndarray) and context.ndim == 1) or (
+            isinstance(context, list) and isinstance(context[0], str)
+        ):
+            return [[{"content": input} for input in context]]
+        elif isinstance(context, list) and isinstance(
+            context[0], dict
+        ):  # with model-specific fields
+            if not unsafe:
+                for message in context:
+                    if "content" not in message:
+                        raise ValueError(
+                            "All message dictionaries must contain a `content` field."
+                        )
+            return [context]
+
+        # Multiple messages/conversations
+        elif (isinstance(context, np.ndarray) and context.ndim == 2) or (
+            isinstance(context, list)
+            and isinstance(context[0], list)
+            and isinstance(context[0][0], str)
+        ):
+            return [
+                [{"content": message} for message in conversation]
+                for conversation in context
+            ]
+        elif isinstance(context, Dataset):
+            return [[{"content": input}] for input in context.test_set.inputs]
+        elif (
+            isinstance(context, list)
+            and isinstance(context[0], list)
+            and isinstance(context[0][0], dict)
+        ):
+            if not unsafe:
+                for conversation in context:
+                    for message in conversation:
+                        if "content" not in message:
+                            raise ValueError(
+                                "All message dictionaries must contain a `content` field."
+                            )
+            return context
+
+        raise ValueError(
+            f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
+        )
+
+    def generate(
+        self,
+        context: Union[
+            str,  # single message
+            List[str],  # single conversation
+            List[
+                List[str]
+            ],  # multiple messages/conversations (depending on inner list length)
+            Dict[str, str],  # single message with model-specific fields
+            List[Dict[str, str]],  # single conversation with model-specific fields
+            List[
+                List[Dict[str, str]]
+            ],  # multiple conversations with model-specific fields
+            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
+            Dataset[
+                str, str
+            ],  # equivalent to List[List[str]] where the length of each inner list is 1
+        ],
+        n_samples: int = 1,
+        max_tokens: Optional[int] = None,
+        unsafe: bool = False,
+    ) -> npt.NDArray[np.str_]:
+        """
+        Generates the next given number of tokens in the sequence.
+        This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
+
+        ### Definitions:
+        ----------
+        - A single independent message is the smallest unit of input.
+            - Represented by a single string or dictionary.
+            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
+            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
+        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
+            - Represented by a list of strings/dictionaries.
+        - Multiple messages/conversations yield multiple outputs.
+            - Represented by a list of lists of strings/dictionaries.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
         `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
+        `unsafe`: whether to bypass expensive input validations.
 
         ### Returns
         -------
         The generated tokens.
-        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`]; if `context` is a single string, then `len(context)` is 1.
+        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`].
+        - If `context` is a single string/dictionary, then `len(context)` is 1.
+
+        ### Raises
+        -------
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
         """
 
-        if isinstance(context, str):
-            return np.array([self._generate_impl(context, max_tokens, n_samples)])
-        elif isinstance(context, Dataset):
-            context = list(context.test_set.inputs)
-        elif isinstance(context, Iterator) or isinstance(context, np.ndarray):
-            context = list(context)
-        elif not isinstance(context, list):
-            raise ValueError(
-                f"Invalid type for `context`: {type(context)}. Must be a string, list of strings, iterator returning strings or `Dataset`."
-            )
+        context = self._parse_context(context, unsafe=unsafe)
 
-        outputs = np.zeros((len(context), n_samples), dtype=np.str_)
         if self._logger:
             self._logger.info(
                 f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
             )
+
+        outputs = np.empty((len(context), n_samples), dtype=np.str_)
         for i in log_progress(range(len(context))):
-            c_outputs = []
-            for _ in range(n_samples):
-                c_outputs.append(self._generate_impl(context[i], max_tokens))
-            outputs.append(c_outputs)
+            outputs[i] = self._generate_impl(context[i], n_samples, max_tokens)
 
         return outputs
 
@@ -122,14 +238,18 @@ class Model(ABC):
 
     @abstractmethod
     def _generate_impl(
-        self, context: str, n_samples: int = 1, max_tokens: Optional[int] = None
+        self,
+        context: List[Dict[str, str]],
+        n_samples: int = 1,
+        max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
         """
-        The model's internal implementation of `generate` acting on a single context string.
+        The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
 
         ### Parameters
         ----------
         `context`: the context to generate from.
+        - Each message (dictionary) must contain the `content` field.
         `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `config.default_max_tokens` will be used.

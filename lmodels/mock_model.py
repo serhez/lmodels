@@ -126,6 +126,8 @@ class MockModel(Model):
                 {
                     "[MockModel.generate]": None,
                     "Output": output,
+                    "n_samples": n_samples,
+                    "max_tokens": max_tokens,
                 }
             )
 

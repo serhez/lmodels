@@ -1,6 +1,6 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Optional
+from typing import Dict, List, Optional
 
 # import httpx
 import numpy as np
@@ -28,6 +28,8 @@ class OpenAIModel(Model):
     - `OPENAI_API_VERSION`
     """
 
+    _DEFAULT_ROLE = "user"
+
     @dataclass(kw_only=True)
     class Config(Model.Config):
         """The configuration for the Hugging Face model."""
@@ -42,12 +44,6 @@ class OpenAIModel(Model):
         """
         The name of the model architecture to use.
         Must be listed as an OpenAI model architecture.
-        """
-
-        role: str = "user"
-        """
-        The role of the user in the conversation.
-        Must be a valid role as defined by the official OpenAI API.
         """
 
         temperature: float = 1.0
@@ -103,15 +99,21 @@ class OpenAIModel(Model):
             "The OpenAI model does not currently provide a tokenizer."
         )
 
-    # TODO: make role a per-call parameter
     def _generate_impl(
-        self, context: str, max_tokens: int = 100, n_samples: int = 1
+        self,
+        context: List[Dict[str, str]],
+        n_samples: int = 1,
+        max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
 
+        for message in context:
+            if "role" not in message:
+                message["role"] = self._DEFAULT_ROLE
+
         output = self._client.chat.completions.create(
-            messages=[{"role": self._config.role, "content": context}],
+            messages=context,
             model=self._config.architecture,
             max_tokens=max_tokens,
             n=n_samples,
@@ -125,6 +127,9 @@ class OpenAIModel(Model):
                     "[OpenAIModel.generate]": None,
                     "Context": context,
                     "Output": output,
+                    "Default role": self._DEFAULT_ROLE,
+                    "n_samples": n_samples,
+                    "max_tokens": max_tokens,
                 }
             )
 
