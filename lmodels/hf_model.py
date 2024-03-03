@@ -1,12 +1,19 @@
+import os
 from dataclasses import MISSING, dataclass
 from typing import Iterator, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 import torch
-import transformers
 from ldata import Dataset
 from mloggers import Logger
+
+try:
+    import transformers
+except ImportError:
+    raise ImportError(
+        "You must install the `transformers[torch]` package to use the Hugging Face models."
+    )
 
 from lmodels.model import Model
 
@@ -14,6 +21,7 @@ from lmodels.model import Model
 class HFModel(Model):
     """
     An API wrapper for interacting with Hugging Face models.
+    Your API token must be stored in the environment variable `HF_API_TOKEN`.
     """
 
     @dataclass(kw_only=True)
@@ -22,9 +30,6 @@ class HFModel(Model):
 
         name: str = "HFModel"
         """The name of the model."""
-
-        api_token: str = MISSING
-        """The API token to use for the model."""
 
         architecture: str = MISSING
         """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
@@ -47,12 +52,17 @@ class HFModel(Model):
 
         super().__init__(config, logger)
 
+        assert (
+            "HF_API_TOKEN" in os.environ
+        ), "You must set the `HF_API_TOKEN` environment variable to use the Hugging Face models."
+        api_token = os.environ["HF_API_TOKEN"]
+
         self._tokenizer = transformers.AutoTokenizer.from_pretrained(
-            config.architecture, token=config.api_token
+            config.architecture, token=api_token
         )
         self._pipeline = transformers.pipeline(
             "text-generation",
-            token=config.api_token,
+            token=api_token,
             model=config.architecture,
             torch_dtype=torch.float16,
             device_map=config.device,
@@ -166,4 +176,6 @@ class HFModel(Model):
         return output
 
     def fine_tune(self, _):
-        raise NotImplementedError("Fine-tuning is not supported for the mock model.")
+        raise NotImplementedError(
+            "Fine-tuning is not supported for the HuggingFace model."
+        )

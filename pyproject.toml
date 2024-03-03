@@ -25,7 +25,6 @@ dependencies = [
     "omegaconf",
     "requests",
     "torch",
-    "transformers[torch]",
     "ldata@git+https://github.com/serhez/ldata.git",
 ]
 
