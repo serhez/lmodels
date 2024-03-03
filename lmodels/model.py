@@ -187,7 +187,7 @@ class Model(ABC):
         Generates the next given number of tokens in the sequence.
         This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
 
-        ### Definitions:
+        ### Definitions
         ----------
         - A single independent message is the smallest unit of input.
             - Represented by a single string or dictionary.
