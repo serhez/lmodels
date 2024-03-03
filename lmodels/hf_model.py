@@ -1,11 +1,10 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 import torch
-from ldata import Dataset
 from mloggers import Logger
 
 try:
@@ -15,7 +14,7 @@ except ImportError:
         "You must install the `transformers[torch]` package to use the Hugging Face models."
     )
 
-from lmodels.model import Model
+from lmodels.model import AnnotatedConversation, Context, Model
 
 
 class HFModel(Model):
@@ -74,22 +73,7 @@ class HFModel(Model):
 
     def generate(
         self,
-        context: Union[
-            str,  # single message
-            List[str],  # single conversation
-            List[
-                List[str]
-            ],  # multiple messages/conversations (depending on inner list length)
-            Dict[str, str],  # single message with model-specific fields
-            List[Dict[str, str]],  # single conversation with model-specific fields
-            List[
-                List[Dict[str, str]]
-            ],  # multiple conversations with model-specific fields
-            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
-            Dataset[
-                str, str
-            ],  # equivalent to List[List[str]] where the length of each inner list is 1
-        ],
+        context: Context,
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
         unsafe: bool = False,
@@ -139,7 +123,7 @@ class HFModel(Model):
 
     def _generate_impl(
         self,
-        context: List[Dict[str, str]],
+        context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:

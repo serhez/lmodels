@@ -1,6 +1,6 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 # import httpx
 import numpy as np
@@ -13,7 +13,7 @@ try:
 except ImportError:
     raise ImportError("You must install the `openai` package to use the OpenAI models.")
 
-from lmodels.model import Model
+from lmodels.model import AnnotatedConversation, Model
 
 
 class OpenAIModel(Model):
@@ -101,7 +101,7 @@ class OpenAIModel(Model):
 
     def _generate_impl(
         self,
-        context: List[Dict[str, str]],
+        context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:

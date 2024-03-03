@@ -9,6 +9,41 @@ from ldata import Dataset  # TODO: Drop this dependency with own Dataset interfa
 from mloggers import Logger
 from mloggers.progress import log_progress
 
+Message = str
+"""A single simple message."""
+
+AnnotatedMessage = Dict[str, str]
+"""
+A single message with model-specific fields, such as `role` for OpenAI's models.
+Must contain a `content` field.
+"""
+
+Conversation = List[Message]
+"""A list of messages forming a conversation."""
+
+AnnotatedConversation = List[AnnotatedMessage]
+"""A list of messages with model-specific fields forming a conversation."""
+
+Context = Union[
+    Message,
+    AnnotatedMessage,
+    Conversation,
+    AnnotatedConversation,
+    List[Conversation],
+    List[AnnotatedConversation],
+    # Alternative representations
+    npt.NDArray[
+        np.str_
+    ],  # can be equivalent to List[str] or List[List[str]], depending on the shape
+    Dataset[
+        str, str
+    ],  # equivalent to List[List[str]], where the length of each inner list is 1
+]
+"""
+The possible types of context input for the `generate` method and its derivatives.
+Note that a list of messages (`List[Message]`) is equivalent to a single conversation (`Conversation`), and the same applies to annotated messages.
+"""
+
 
 class Model(ABC):
     """An abstract class for interacting with a model."""
@@ -63,22 +98,7 @@ class Model(ABC):
 
     def _parse_context(
         self,
-        context: Union[
-            str,  # single message
-            List[str],  # single conversation
-            List[
-                List[str]
-            ],  # multiple messages/conversations (depending on inner list length)
-            Dict[str, str],  # single message with model-specific fields
-            List[Dict[str, str]],  # single conversation with model-specific fields
-            List[
-                List[Dict[str, str]]
-            ],  # multiple conversations with model-specific fields
-            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
-            Dataset[
-                str, str
-            ],  # equivalent to List[List[str]] where the length of each inner list is 1
-        ],
+        context: Context,
         unsafe: bool = False,
     ) -> List[List[Dict[str, str]]]:
         """
@@ -163,22 +183,7 @@ class Model(ABC):
 
     def generate(
         self,
-        context: Union[
-            str,  # single message
-            List[str],  # single conversation
-            List[
-                List[str]
-            ],  # multiple messages/conversations (depending on inner list length)
-            Dict[str, str],  # single message with model-specific fields
-            List[Dict[str, str]],  # single conversation with model-specific fields
-            List[
-                List[Dict[str, str]]
-            ],  # multiple conversations with model-specific fields
-            npt.NDArray[np.str_],  # can be equivalent to List[str] or List[List[str]]
-            Dataset[
-                str, str
-            ],  # equivalent to List[List[str]] where the length of each inner list is 1
-        ],
+        context: Context,
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
         unsafe: bool = False,
@@ -239,7 +244,7 @@ class Model(ABC):
     @abstractmethod
     def _generate_impl(
         self,
-        context: List[Dict[str, str]],
+        context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
