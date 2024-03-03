@@ -5,6 +5,7 @@ from typing import List, Optional
 import numpy as np
 import numpy.typing as npt
 import requests
+import transformers
 from mloggers import Logger
 
 from lmodels.model import Model
@@ -99,8 +100,8 @@ class MockModel(Model):
             pass
 
     @property
-    def tokenizer(self) -> None:
-        return None
+    def tokenizer(self) -> transformers.PreTrainedTokenizer:
+        raise NotImplementedError("The mock model does not have a tokenizer.")
 
     def _generate_impl(
         self, _, n_samples: int = 1, max_tokens: Optional[int] = None
