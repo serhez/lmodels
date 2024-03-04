@@ -119,7 +119,7 @@ class OpenAIModel(Model):
             model=self._config.architecture,
             max_tokens=max_tokens,
             n=n_samples,
-            temp=self._config.temperature,
+            temperature=self._config.temperature,
             top_p=self._config.top_p,
         )
 
