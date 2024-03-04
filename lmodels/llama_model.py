@@ -111,10 +111,9 @@ class LlamaModel(Model):
         model_args: ModelArgs = ModelArgs(
             max_seq_len=config.default_max_tokens,
             max_batch_size=config.max_batch_size,
-            vocab_size=self._tokenizer.n_words,
             **params,
         )
-        torch.set_default_tensor_type(torch.cuda.HalfTensor)
+        model_args.vocab_size = self._tokenizer.n_words
         model = Transformer(model_args)
         model.load_state_dict(checkpoint, strict=False)
         model.eval()
