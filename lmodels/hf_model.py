@@ -160,5 +160,5 @@ class HFModel(Model):
 
     def fine_tune(self, _):
         raise NotImplementedError(
-            "Fine-tuning is not supported for the HuggingFace model."
+            "Fine-tuning is not supported for the Hugging Face model."
         )

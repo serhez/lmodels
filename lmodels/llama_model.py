@@ -211,3 +211,6 @@ class LlamaModel(Model):
             )
 
         return output
+
+    def fine_tune(self, _):
+        raise NotImplementedError("Fine-tuning is not supported for the Llama model.")
