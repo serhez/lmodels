@@ -107,7 +107,7 @@ class MockModel(Model):
         self, _, n_samples: int = 1, max_tokens: Optional[int] = None
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
-            max_tokens = self._config.max_tokens
+            max_tokens = self._config.default_max_tokens
 
         if self._outputs:
             output = np.random.choice(self._outputs, size=(n_samples,), p=self._probs)

@@ -26,9 +26,11 @@ class OpenAIModel(Model):
     - `OPENAI_ORG_ID`
     - `AZURE_OPENAI_AD_TOKEN`
     - `OPENAI_API_VERSION`
+
+    The default role for messages is "user" if none is provided when using `generate` via annotated messages (i.e., dictionaries).
     """
 
-    _DEFAULT_ROLE = "user"
+    _DEFAULT_ROLE = "user"  # if modified, reflect on the docstring above and any other relevant documentation
 
     @dataclass(kw_only=True)
     class Config(Model.Config):
@@ -106,7 +108,7 @@ class OpenAIModel(Model):
         max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
-            max_tokens = self._config.max_tokens
+            max_tokens = self._config.default_max_tokens
 
         for message in context:
             if "role" not in message:

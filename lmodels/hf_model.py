@@ -90,7 +90,7 @@ class HFModel(Model):
             inputs.append(input)
 
         if max_tokens is None:
-            max_tokens = self._config.max_tokens
+            max_tokens = self._config.default_max_tokens
 
         outputs = self._pipeline(
             inputs,
@@ -128,7 +128,7 @@ class HFModel(Model):
         max_tokens: Optional[int] = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
-            max_tokens = self._config.max_tokens
+            max_tokens = self._config.default_max_tokens
 
         input = context[0]["content"]
         for i in range(1, len(context)):
