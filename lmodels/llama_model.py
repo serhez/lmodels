@@ -159,6 +159,7 @@ class LlamaModel(Model):
                 logprobs=False,
                 echo=False,
             )
+            self.logger.debug(f"RAW RESULTS: {results}")  # TODO: REMOVE
             outputs.append([self._tokenizer.decode(result) for result in results])
         # outputs = np.array(outputs).T
 
