@@ -186,6 +186,7 @@ class LlamaModel(Model):
         for i in range(1, len(context)):
             input += "\n" + context[i]["content"]
         input_tokens = [self._tokenizer.encode(input, bos=True, eos=False)]
+        input_tokens = input_tokens * n_samples
 
         output = self._generator.generate(
             prompt_tokens=input_tokens,
