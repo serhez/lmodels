@@ -160,7 +160,7 @@ class LlamaModel(Model):
                 echo=False,
             )
             outputs.append([self._tokenizer.decode(result) for result in results])
-        outputs = np.array(outputs).T
+        # outputs = np.array(outputs).T
 
         if self._logger and self._config.debug:
             self._logger.debug(
