@@ -189,7 +189,7 @@ class LlamaModel(Model):
 
         output = self._generator.generate(
             prompt_tokens=input_tokens,
-            max_gen_len=self._config.max_gen_len,
+            max_gen_len=max_tokens,
             temperature=self._config.temperature,
             top_p=self._config.top_p,
             logprobs=False,
