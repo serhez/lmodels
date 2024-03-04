@@ -67,6 +67,9 @@ class Model(ABC):
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
         """The device which will be used to run the model."""
 
+        use_progress_bar: bool = True
+        """Whether to use a progress bar for long-running operations."""
+
         debug: bool = False
         """Whether to use debug-level logs."""
 
@@ -83,8 +86,13 @@ class Model(ABC):
         self._config = config
         self._logger = logger
 
-        if self._logger and self._config.debug:
+        if self._logger and config.debug:
             self._logger.debug({"Model config": config})
+
+        if config.use_progress_bar:
+            self._log_progress = log_progress
+        else:
+            self._log_progress = lambda x: x
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self._config.name})"
@@ -231,7 +239,7 @@ class Model(ABC):
             )
 
         outputs = np.empty((len(context), n_samples), dtype=np.str_)
-        for i in log_progress(range(len(context))):
+        for i in self._log_progress(range(len(context))):
             outputs[i] = self._generate_impl(context[i], n_samples, max_tokens)
 
         return outputs
