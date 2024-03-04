@@ -149,15 +149,18 @@ class LlamaModel(Model):
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
-        outputs = self._generator.generate(
-            prompt_tokens=input_tokens,
-            max_gen_len=max_tokens,
-            temperature=self._config.temperature,
-            top_p=self._config.top_p,
-            logprobs=False,
-            echo=False,
-        )
-        outputs = [self._tokenizer.decode(output) for output in outputs]
+        outputs = []
+        for _ in range(n_samples):
+            outputs = self._generator.generate(
+                prompt_tokens=input_tokens,
+                max_gen_len=max_tokens,
+                temperature=self._config.temperature,
+                top_p=self._config.top_p,
+                logprobs=False,
+                echo=False,
+            )
+            outputs.append([self._tokenizer.decode(output) for output in outputs])
+        outputs = np.array(outputs).T
 
         if self._logger and self._config.debug:
             self._logger.debug(
