@@ -150,7 +150,7 @@ class LlamaModel(Model):
             max_tokens = self._config.default_max_tokens
 
         outputs = self._generator.generate(
-            prompt_tokens=[input_tokens],
+            prompt_tokens=input_tokens,
             max_gen_len=max_tokens,
             temperature=self._config.temperature,
             top_p=self._config.top_p,
@@ -185,7 +185,7 @@ class LlamaModel(Model):
         input = context[0]["content"]
         for i in range(1, len(context)):
             input += "\n" + context[i]["content"]
-        input_tokens = self._tokenizer.encode(input, bos=True, eos=False)
+        input_tokens = [self._tokenizer.encode(input, bos=True, eos=False)]
 
         output = self._generator.generate(
             prompt_tokens=input_tokens,
