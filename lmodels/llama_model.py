@@ -151,7 +151,7 @@ class LlamaModel(Model):
 
         outputs = []
         for _ in range(n_samples):
-            outputs = self._generator.generate(
+            results = self._generator.generate(
                 prompt_tokens=input_tokens,
                 max_gen_len=max_tokens,
                 temperature=self._config.temperature,
@@ -159,7 +159,7 @@ class LlamaModel(Model):
                 logprobs=False,
                 echo=False,
             )
-            outputs.append([self._tokenizer.decode(output) for output in outputs])
+            outputs.append([self._tokenizer.decode(result) for result in results])
         outputs = np.array(outputs).T
 
         if self._logger and self._config.debug:
