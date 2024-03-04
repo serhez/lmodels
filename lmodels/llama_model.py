@@ -158,10 +158,9 @@ class LlamaModel(Model):
                 top_p=self._config.top_p,
                 logprobs=False,
                 echo=False,
-            )
-            self._logger.debug(f"RAW RESULTS: {results}")  # TODO: REMOVE
+            )[0]
             outputs.append([self._tokenizer.decode(result) for result in results])
-        # outputs = np.array(outputs).T
+        outputs = np.array(outputs).T
 
         if self._logger and self._config.debug:
             self._logger.debug(
@@ -199,8 +198,8 @@ class LlamaModel(Model):
             top_p=self._config.top_p,
             logprobs=False,
             echo=False,
-        )
-        output = self._tokenizer.decode(output[0])
+        )[0]
+        output = self._tokenizer.decode(output)
 
         if self._logger and self._config.debug:
             self._logger.debug(
