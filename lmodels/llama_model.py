@@ -1,4 +1,6 @@
 import json
+import os
+import sys
 from dataclasses import MISSING, dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -9,12 +11,17 @@ import torch
 from mloggers import Logger
 
 try:
+    from fairscale.nn.model_parallel.initialize import (
+        get_model_parallel_rank,
+        initialize_model_parallel,
+        model_parallel_is_initialized,
+    )
     from llama import Llama
     from llama.model import ModelArgs, Transformer
     from llama.tokenizer import Tokenizer
 except ImportError:
     raise ImportError(
-        "You must install the [`llama` package](https://github.com/facebookresearch/llama) to use the Llama models."
+        "You must install the [`llama`](https://github.com/facebookresearch/llama) and `fairscale` packages to use the Llama models."
     )
 
 
@@ -33,8 +40,8 @@ class LlamaModel(Model):
         name: str = "LlamaModel"
         """The name of the model."""
 
-        checkpoint_path: str = MISSING
-        """The path to the model's checkpoint."""
+        checkpoint_dir: str = MISSING
+        """The path to the model's checkpoint directory."""
 
         tokenizer_path: str = MISSING
         """The path to the model's tokenizer."""
@@ -47,6 +54,13 @@ class LlamaModel(Model):
 
         max_batch_size: int = 8
         """The maximum batch size for the model."""
+
+        model_parallel_size: Optional[int] = None
+        """
+        The number of model parallel GPUs to use.
+        If None, the value is taken from the environment variable `WORLD_SIZE`.
+        If the environment variable is not set, the value is set to 1.
+        """
 
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
@@ -62,25 +76,45 @@ class LlamaModel(Model):
 
         torch.set_default_tensor_type(torch.cuda.HalfTensor)
 
+        # Manage the device for multi-GPU training
+        if not torch.distributed.is_initialized():
+            torch.distributed.init_process_group("nccl")
+        if not model_parallel_is_initialized():
+            if config.model_parallel_size is None:
+                config.model_parallel_size = int(os.environ.get("WORLD_SIZE", 1))
+            initialize_model_parallel(config.model_parallel_size)
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        torch.cuda.set_device(local_rank)
+        if local_rank > 0:
+            sys.stdout = open(os.devnull, "w")
+
+        # Load the checkpoints
+        checkpoints = sorted(Path(config.checkpoint_dir).glob("*.pth"))
+        assert (
+            len(checkpoints) > 0
+        ), f"no checkpoint files found in {config.checkpoint_dir}"
+        assert (
+            config.model_parallel_size == len(checkpoints)
+        ), f"Loading a checkpoint for MP={len(checkpoints)} but world size is {config.model_parallel_size}"
+        ckpt_path = checkpoints[get_model_parallel_rank()]
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+
         # Create the tokenizer
         self._tokenizer = Tokenizer(model_path=config.tokenizer_path)
 
-        # Load the checkpoints
-        checkpoint = torch.load(config.checkpoint_path, map_location="cpu")
-        checkpoint_dir = Path(config.checkpoint_path).parent
+        # Create the model
         try:
-            with open(Path(checkpoint_dir) / "params.json", "r") as f:
+            with open(Path(config.checkpoint_dir) / "params.json", "r") as f:
                 params = json.loads(f.read())
         except FileNotFoundError:
             params = {}
-
-        # Create the model
         model_args: ModelArgs = ModelArgs(
-            max_seq_len=config.max_seq_len,
+            max_seq_len=config.default_max_tokens,
             max_batch_size=config.max_batch_size,
             vocab_size=self._tokenizer.n_words,
             **params,
         )
+        torch.set_default_tensor_type(torch.cuda.HalfTensor)
         model = Transformer(model_args)
         model.load_state_dict(checkpoint, strict=False)
         model.eval()
