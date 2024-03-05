@@ -1,3 +1,5 @@
+# WARN: PERSONAL CODE, DO NOT DISTRIBUTE - The license of the original Llama API is not compatible with the license of this package.
+
 import json
 import os
 import sys
@@ -21,7 +23,7 @@ try:
     from llama.tokenizer import Tokenizer
 except ImportError:
     raise ImportError(
-        "You must install the [`llama`](https://github.com/facebookresearch/llama) and `fairscale` packages to use the Llama models."
+        "You must install the `llama` (`pip install git+https://github.com/facebookresearch/llama`) package to use the Llama models."
     )
 
 
@@ -31,6 +33,10 @@ from lmodels.model import AnnotatedConversation, Context, Model
 class LlamaModel(Model):
     """
     An API wrapper for interacting with Llama models through the Llama API.
+    This code is an adaptation from Facebook Research Llama API, available [here](https://github.com/facebookresearch/llama).
+
+    The following environment variables must be set:
+    - `WORLD_SIZE`: the number of GPUs to use for model parallelism.
     """
 
     @dataclass(kw_only=True)
@@ -55,13 +61,6 @@ class LlamaModel(Model):
         max_batch_size: int = 8
         """The maximum batch size for the model."""
 
-        model_parallel_size: Optional[int] = None
-        """
-        The number of model parallel GPUs to use.
-        If None, the value is taken from the environment variable `WORLD_SIZE`.
-        If the environment variable is not set, the value is set to 1.
-        """
-
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initializes the Llama model.
@@ -76,13 +75,16 @@ class LlamaModel(Model):
 
         torch.set_default_tensor_type(torch.cuda.HalfTensor)
 
+        assert (
+            "WORLD_SIZE" in os.environ
+        ), "WORLD_SIZE environment variable must be set to use model parallelism."
+        model_parallel_size = int(os.environ.get("WORLD_SIZE", 1))
+
         # Manage the device for multi-GPU training
         if not torch.distributed.is_initialized():
             torch.distributed.init_process_group("nccl")
         if not model_parallel_is_initialized():
-            if config.model_parallel_size is None:
-                config.model_parallel_size = int(os.environ.get("WORLD_SIZE", 1))
-            initialize_model_parallel(config.model_parallel_size)
+            initialize_model_parallel(model_parallel_size)
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         torch.cuda.set_device(local_rank)
         if local_rank > 0:
@@ -94,8 +96,8 @@ class LlamaModel(Model):
             len(checkpoints) > 0
         ), f"no checkpoint files found in {config.checkpoint_dir}"
         assert (
-            config.model_parallel_size == len(checkpoints)
-        ), f"Loading a checkpoint for MP={len(checkpoints)} but world size is {config.model_parallel_size}"
+            model_parallel_size == len(checkpoints)
+        ), f"Loading a checkpoint for MP={len(checkpoints)} but world size is {model_parallel_size}"
         ckpt_path = checkpoints[get_model_parallel_rank()]
         checkpoint = torch.load(ckpt_path, map_location="cpu")
 
