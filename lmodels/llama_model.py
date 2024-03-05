@@ -36,7 +36,15 @@ class LlamaModel(Model):
     This code is an adaptation from Facebook Research Llama API, available [here](https://github.com/facebookresearch/llama).
 
     The following environment variables must be set:
+    - `RANK`: the index of the parallel worker.
     - `WORLD_SIZE`: the number of GPUs to use for model parallelism.
+    These environment variables are automatically set by `torchrun`, which may also need the `--nproc_per_node` to be set appropriately. For example:
+
+    ```bash
+    torchrun --nproc_per_node 1 run.py  # for Llama2 7B
+    torchrun --nproc_per_node 2 run.py  # for Llama2 13B
+    torchrun --nproc_per_node 8 run.py  # for Llama2 70B
+    ```
     """
 
     @dataclass(kw_only=True)
