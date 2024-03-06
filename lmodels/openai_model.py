@@ -54,7 +54,10 @@ class OpenAIModel(Model):
         """The cumulative probability for nucleus sampling."""
 
         url_replacements: Dict[str, str] = field(default_factory=lambda: dict())
-        """A dictionary of URL replacements to be made for the Azure API url."""
+        """
+        A dictionary of URL replacements to be made for the Azure API url.
+        The keys are the patterns to be identified in the `URL.path`, and the values are the whole new `URL.path` to be used instead.
+        """
 
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
@@ -79,8 +82,7 @@ class OpenAIModel(Model):
             init_url = request.url
             for key, value in config.url_replacements.items():
                 if key in request.url.path:
-                    new_path = request.url.path.replace(key, value)
-                    request.url = request.url.copy_with(path=new_path)
+                    request.url = request.url.copy_with(path=value)
             if self._logger and self._config.debug:
                 self._logger.debug(
                     {
