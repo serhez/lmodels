@@ -78,7 +78,9 @@ class OpenAIModel(Model):
         def _update_base_url(request: httpx.Request) -> None:
             init_url = request.url
             for key, value in config.url_replacements.items():
-                request.url = request.url.replace(key, value)
+                if key in request.url.path:
+                    new_path = request.url.path.replace(key, value)
+                    request.url = request.url.copy_with(path=new_path)
             if self._logger and self._config.debug:
                 self._logger.debug(
                     {
