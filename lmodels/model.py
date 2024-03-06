@@ -239,9 +239,14 @@ class Model(ABC):
                 f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
             )
 
-        outputs = np.empty((len(context), n_samples), dtype=np.str_)
-        for i in self._log_progress(range(len(context))):
-            outputs[i] = self._generate_impl(context[i], n_samples, max_tokens)
+        outputs = np.array(
+            [
+                self._generate_impl(
+                    conversation, n_samples=n_samples, max_tokens=max_tokens
+                )
+                for conversation in context
+            ]
+        )
 
         return outputs
 
