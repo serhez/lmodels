@@ -189,6 +189,7 @@ class Model(ABC):
             f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
         )
 
+    # TODO: return logprobs too
     def generate(
         self,
         context: Context,
@@ -221,7 +222,7 @@ class Model(ABC):
         ### Returns
         -------
         The generated tokens.
-        - The return type is a `numpy.NDArray` of strings of size [`len(context)`, `n_samples`].
+        - The return type is a `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
         - If `context` is a single string/dictionary, then `len(context)` is 1.
 
         ### Raises
@@ -269,7 +270,7 @@ class Model(ABC):
 
         ### Returns
         -------
-        A `numpy.NDArray` with the generated tokens for each sample.
+        A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
         """
 
         pass
