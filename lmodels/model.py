@@ -241,10 +241,8 @@ class Model(ABC):
 
         outputs = np.array(
             [
-                self._generate_impl(
-                    conversation, n_samples=n_samples, max_tokens=max_tokens
-                )
-                for conversation in context
+                self._generate_impl(input, n_samples=n_samples, max_tokens=max_tokens)
+                for input in context
             ]
         )
 
