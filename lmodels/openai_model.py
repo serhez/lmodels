@@ -72,7 +72,7 @@ class OpenAIModel(Model):
         self._config = config
 
         def _update_base_url(request: httpx.Request) -> None:
-            for key, value in config.azure_base_url.items():
+            for key, value in config.url_replacements.items():
                 if request.url.path == key:
                     request.url = request.url.copy_with(path=value)
 
