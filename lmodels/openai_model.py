@@ -60,6 +60,10 @@ class OpenAIModel(Model):
         """
         Initializes the Hugging Face model.
         Your API key should be stored in the environment variable `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY` (for Azure API).
+        If you are using the Azure API, you must also set the `AZURE_OPENAI_ENDPOINT` and `OPENAI_API_VERSION` environment variables.
+        Other environment variables that can optionally be set are:
+        - `OPENAI_ORG_ID`
+        - `AZURE_OPENAI_AD_TOKEN`
 
         ### Parameters
         ----------
@@ -72,9 +76,11 @@ class OpenAIModel(Model):
         self._config = config
 
         def _update_base_url(request: httpx.Request) -> None:
+            print(f"Previous URL: {request.url}")
             for key, value in config.url_replacements.items():
                 if request.url.path == key:
                     request.url = request.url.copy_with(path=value)
+            print(f"New URL: {request.url}")
 
         if config.use_azure:
             assert (
