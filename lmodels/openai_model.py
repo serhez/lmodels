@@ -101,7 +101,6 @@ class OpenAIModel(Model):
             ), "you must set the `AZURE_OPENAI_ENDPOINT` environment variable for `config.use_azure = True`"
 
             self._client = AzureOpenAI(
-                api_key=False,  # API key not used, and rather set below
                 default_headers={
                     "Ocp-Apim-Subscription-Key": os.environ["AZURE_OPENAI_API_KEY"],
                 },
