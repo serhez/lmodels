@@ -1,5 +1,5 @@
 import os
-from dataclasses import MISSING, dataclass
+from dataclasses import MISSING, dataclass, field
 from typing import Dict, Optional
 
 import httpx
@@ -53,7 +53,7 @@ class OpenAIModel(Model):
         top_p: float = 1.0
         """The cumulative probability for nucleus sampling."""
 
-        url_replacements: Dict[str, str] = {}
+        url_replacements: Dict[str, str] = field(default_factory=lambda: dict())
         """A dictionary of URL replacements to be made for the Azure API url."""
 
     def __init__(self, config: Config, logger: Optional[Logger] = None):
