@@ -1,8 +1,8 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Optional
+from typing import Dict, Optional
 
-# import httpx
+import httpx
 import numpy as np
 import numpy.typing as npt
 import transformers
@@ -21,11 +21,10 @@ class OpenAIModel(Model):
     An API wrapper for interacting with OpenAI models.
 
     Your API key must be stored in the environment variable `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY` (for Azure API).
-    If you are using the Azure API, you must also set the `AZURE_OPENAI_ENDPOINT` environment variable.
+    If you are using the Azure API, you must also set the `AZURE_OPENAI_ENDPOINT` and `OPENAI_API_VERSION` environment variables.
     Other environment variables that can optionally be set are:
     - `OPENAI_ORG_ID`
     - `AZURE_OPENAI_AD_TOKEN`
-    - `OPENAI_API_VERSION`
 
     The default role for messages is "user" if none is provided when using `generate` via annotated messages (i.e., dictionaries).
     """
@@ -54,6 +53,9 @@ class OpenAIModel(Model):
         top_p: float = 1.0
         """The cumulative probability for nucleus sampling."""
 
+        url_replacements: Dict[str, str] = {}
+        """A dictionary of URL replacements to be made for the Azure API url."""
+
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
         Initializes the Hugging Face model.
@@ -69,9 +71,10 @@ class OpenAIModel(Model):
 
         self._config = config
 
-        # def _update_base_url(request: httpx.Request) -> None:
-        #     if request.url.path == "/chat/completions":
-        #         request.url = request.url.copy_with(path="/v1/chat")
+        def _update_base_url(request: httpx.Request) -> None:
+            for key, value in config.azure_base_url.items():
+                if request.url.path == key:
+                    request.url = request.url.copy_with(path=value)
 
         if config.use_azure:
             assert (
@@ -82,11 +85,11 @@ class OpenAIModel(Model):
             ), "you must set the `AZURE_OPENAI_ENDPOINT` environment variable for `config.use_azure = True`"
 
             self._client = AzureOpenAI(
-                # http_client=httpx.Client(
-                #     event_hooks={
-                #         "request": [_update_base_url],
-                #     }
-                # ),
+                http_client=httpx.Client(
+                    event_hooks={
+                        "request": [_update_base_url],
+                    }
+                ),
             )
         else:
             assert (
