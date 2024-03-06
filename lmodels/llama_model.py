@@ -214,7 +214,7 @@ class LlamaModel(Model):
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
-                    "[LlamaModel.generate]": None,
+                    "[LlamaModel._generate_impl]": None,
                     "Context": context,
                     "Input": input,
                     "Output": output,

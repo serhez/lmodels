@@ -147,7 +147,7 @@ class HFModel(Model):
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
-                    "[HFModel.generate]": None,
+                    "[HFModel._generate_impl]": None,
                     "Context": context,
                     "Input": input,
                     "Output": output,

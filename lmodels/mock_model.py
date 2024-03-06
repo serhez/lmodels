@@ -124,7 +124,7 @@ class MockModel(Model):
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
-                    "[MockModel.generate]": None,
+                    "[MockModel._generate_impl]": None,
                     "Output": output,
                     "n_samples": n_samples,
                     "max_tokens": max_tokens,

@@ -144,12 +144,12 @@ class OpenAIModel(Model):
             temperature=self._config.temperature,
             top_p=self._config.top_p,
         )
-        output = np.array([[choice.message.content for choice in output.choices]])
+        output = np.array([choice.message.content for choice in output.choices])
 
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
-                    "[OpenAIModel.generate]": None,
+                    "[OpenAIModel._generate_impl]": None,
                     "Context": context,
                     "Output": output,
                     "Default role": self._DEFAULT_ROLE,
