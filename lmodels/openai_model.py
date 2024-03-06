@@ -96,7 +96,13 @@ class OpenAIModel(Model):
                 config.use_azure or "OPENAI_API_KEY" in os.environ
             ), "you must set the `OPENAI_API_KEY` environment variable for `config.use_azure = False`"
 
-            self._client = OpenAI()
+            self._client = OpenAI(
+                http_client=httpx.Client(
+                    event_hooks={
+                        "request": [_update_base_url],
+                    }
+                ),
+            )
 
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
