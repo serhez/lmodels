@@ -87,8 +87,8 @@ class OpenAIModel(Model):
                 self._logger.debug(
                     {
                         "[OpenAIModel._update_base_url]": None,
-                        "Initial URL": init_url,
-                        "New URL": request.url,
+                        "Initial URL": str(init_url),
+                        "New URL": str(request.url),
                     }
                 )
 
