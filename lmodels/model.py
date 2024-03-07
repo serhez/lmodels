@@ -87,7 +87,7 @@ class Model(ABC):
         self._logger = logger
 
         if self._logger and config.debug:
-            self._logger.debug({"Model config": config})
+            self._logger.debug({"[Model.config]": self._config.__dict__})
 
         if config.use_progress_bar:
             self._log_progress = log_progress
