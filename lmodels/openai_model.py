@@ -33,7 +33,7 @@ class OpenAIModel(Model):
 
     @dataclass(kw_only=True)
     class Config(Model.Config):
-        """The configuration for the Hugging Face model."""
+        """The configuration for the OpenAI model."""
 
         name: str = "OpenAIModel"
         """The name of the model."""
@@ -61,7 +61,7 @@ class OpenAIModel(Model):
 
     def __init__(self, config: Config, logger: Optional[Logger] = None):
         """
-        Initializes the Hugging Face model.
+        Initializes the OpenAI model.
         Your API key should be stored in the environment variable `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY` (for Azure API).
         If you are using the Azure API, you must also set the `AZURE_OPENAI_ENDPOINT` and `OPENAI_API_VERSION` environment variables.
         Other environment variables that can optionally be set are:
