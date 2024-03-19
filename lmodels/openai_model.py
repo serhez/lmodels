@@ -94,10 +94,10 @@ class OpenAIModel(Model):
 
         if config.use_azure:
             assert (
-                not config.use_azure or "AZURE_OPENAI_API_KEY" in os.environ
+                "AZURE_OPENAI_API_KEY" in os.environ
             ), "you must set the `AZURE_OPENAI_API_KEY` environment variable for `config.use_azure = True`"
             assert (
-                not config.use_azure or "AZURE_OPENAI_ENDPOINT" in os.environ
+                "AZURE_OPENAI_ENDPOINT" in os.environ
             ), "you must set the `AZURE_OPENAI_ENDPOINT` environment variable for `config.use_azure = True`"
 
             self._client = AzureOpenAI(
@@ -112,7 +112,7 @@ class OpenAIModel(Model):
             )
         else:
             assert (
-                config.use_azure or "OPENAI_API_KEY" in os.environ
+                "OPENAI_API_KEY" in os.environ
             ), "you must set the `OPENAI_API_KEY` environment variable for `config.use_azure = False`"
 
             self._client = OpenAI()
