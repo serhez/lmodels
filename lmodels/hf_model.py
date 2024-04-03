@@ -1,6 +1,5 @@
 import os
 from dataclasses import MISSING, dataclass
-from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -39,7 +38,7 @@ class HFModel(Model):
         top_k: int = 10
         """The number of top tokens to consider when sampling."""
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the Hugging Face model.
 
@@ -75,7 +74,7 @@ class HFModel(Model):
         self,
         context: Context,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         unsafe: bool = False,
     ) -> npt.NDArray[np.str_]:
         context = self._parse_context(context, unsafe=unsafe)
@@ -125,7 +124,7 @@ class HFModel(Model):
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens

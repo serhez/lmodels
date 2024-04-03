@@ -1,6 +1,5 @@
 import os
 from dataclasses import MISSING, dataclass, field
-from typing import Dict, Optional
 
 import httpx
 import numpy as np
@@ -53,13 +52,13 @@ class OpenAIModel(Model):
         top_p: float = 1.0
         """The cumulative probability for nucleus sampling."""
 
-        url_replacements: Dict[str, str] = field(default_factory=lambda: dict())
+        url_replacements: dict[str, str] = field(default_factory=lambda: dict())
         """
         A dictionary of URL replacements to be made for the Azure API url.
         The keys are the patterns to be identified in the `URL.path`, and the values are the whole new `URL.path` to be used instead.
         """
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the OpenAI model.
         Your API key should be stored in the environment variable `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY` (for Azure API).
@@ -127,7 +126,7 @@ class OpenAIModel(Model):
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens

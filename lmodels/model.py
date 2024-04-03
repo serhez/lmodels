@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import MISSING, dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -12,33 +12,33 @@ from mloggers.progress import log_progress
 Message = str
 """A single simple message."""
 
-AnnotatedMessage = Dict[str, str]
+AnnotatedMessage = dict[str, str]
 """
 A single message with model-specific fields, such as `role` for OpenAI's models.
 Must contain a `content` field.
 """
 
-Conversation = List[Message]
+Conversation = list[Message]
 """A list of messages forming a conversation."""
 
-AnnotatedConversation = List[AnnotatedMessage]
+AnnotatedConversation = list[AnnotatedMessage]
 """A list of messages with model-specific fields forming a conversation."""
 
-Context = Union[
-    Message,
-    AnnotatedMessage,
-    Conversation,
-    AnnotatedConversation,
-    List[Conversation],
-    List[AnnotatedConversation],
+Context = (
+    Message
+    | AnnotatedMessage
+    | Conversation
+    | AnnotatedConversation
+    | list[Conversation]
+    | list[AnnotatedConversation]
     # Alternative representations
-    npt.NDArray[
+    | npt.NDArray[
         np.str_
-    ],  # can be equivalent to List[str] or List[List[str]], depending on the shape
-    Dataset[
+    ]  # can be equivalent to List[str] or List[List[str]], depending on the shape
+    | Dataset[
         str, str
-    ],  # equivalent to List[List[str]], where the length of each inner list is 1
-]
+    ]  # equivalent to List[List[str]], where the length of each inner list is 1
+)
 """
 The possible types of context input for the `generate` method and its derivatives.
 Note that a list of messages (`List[Message]`) is equivalent to a single conversation (`Conversation`), and the same applies to annotated messages.
@@ -73,7 +73,7 @@ class Model(ABC):
         debug: bool = False
         """Whether to use debug-level logs."""
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initialize the model.
 
@@ -108,7 +108,7 @@ class Model(ABC):
         self,
         context: Context,
         unsafe: bool = False,
-    ) -> List[List[Dict[str, str]]]:
+    ) -> list[list[dict[str, str]]]:
         """
         Parses the context input.
         Check `generate`'s signature for allowed input types and their meanings.
@@ -194,7 +194,7 @@ class Model(ABC):
         self,
         context: Context,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         unsafe: bool = False,
     ) -> npt.NDArray[np.str_]:
         """
@@ -258,7 +258,7 @@ class Model(ABC):
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> npt.NDArray[np.str_]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
@@ -279,7 +279,7 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def fine_tune(self, dataset: Union[Dataset, List[Tuple[str, str]]]):
+    def fine_tune(self, dataset: Dataset | list[tuple[str, str]]):
         """
         Fine-tunes the model.
 

@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from typing import List, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -24,13 +23,13 @@ class MockModel(Model):
         name: str = "MockModel"
         """The name of the model."""
 
-        outputs: Optional[List[str]] = None
+        outputs: list[str] | None = None
         """
         The list of possible outputs to use.
         - If not provided, sequences of random tokens of at most `max_tokens` length will be output.
         """
 
-        probs: Optional[List[float]] = None
+        probs: list[float] | None = None
         """
         The probabilities for each of the `outputs`."
         - If provided, they must add up to 1 and have the same length as the `outputs`.
@@ -41,7 +40,7 @@ class MockModel(Model):
     def __init__(
         self,
         config: Config,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
     ):
         """
         Initializes the mock model with the given configuration.
@@ -104,7 +103,7 @@ class MockModel(Model):
         raise NotImplementedError("The mock model does not have a tokenizer.")
 
     def _generate_impl(
-        self, _, n_samples: int = 1, max_tokens: Optional[int] = None
+        self, _, n_samples: int = 1, max_tokens: int | None = None
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens

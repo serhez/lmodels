@@ -5,7 +5,7 @@ import os
 import sys
 from dataclasses import MISSING, dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -69,7 +69,7 @@ class LlamaModel(Model):
         max_batch_size: int = 8
         """The maximum batch size for the model."""
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the Llama model.
 
@@ -139,7 +139,7 @@ class LlamaModel(Model):
         self,
         context: Context,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         unsafe: bool = False,
     ) -> npt.NDArray[np.str_]:
         context = self._parse_context(context, unsafe=unsafe)
@@ -190,7 +190,7 @@ class LlamaModel(Model):
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
