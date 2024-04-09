@@ -102,7 +102,8 @@ class Model(ABC):
     @abstractmethod
     def tokenizer(self) -> Any:
         """The tokenizer of the model."""
-        pass
+
+        ...
 
     def _parse_context(
         self,
@@ -276,7 +277,7 @@ class Model(ABC):
         A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
         """
 
-        pass
+        ...
 
     @abstractmethod
     def fine_tune(self, dataset: Dataset | list[tuple[str, str]]):
@@ -288,4 +289,4 @@ class Model(ABC):
         `dataset`: the dataset to fine-tune the model on.
         """
 
-        pass
+        ...
