@@ -3,7 +3,7 @@
 import json
 import os
 import sys
-from dataclasses import MISSING, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -54,10 +54,10 @@ class LlamaModel(Model):
         name: str = "LlamaModel"
         """The name of the model."""
 
-        checkpoint_dir: str = MISSING
+        checkpoint_dir: str
         """The path to the model's checkpoint directory."""
 
-        tokenizer_path: str = MISSING
+        tokenizer_path: str
         """The path to the model's tokenizer."""
 
         top_p: float = 0.9

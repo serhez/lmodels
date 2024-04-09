@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import MISSING, dataclass
+from dataclasses import dataclass
 from typing import Any, Callable
 
 import numpy as np
@@ -52,7 +52,7 @@ class Model(ABC):
     class Config:
         """The configuration for the model."""
 
-        name: str = MISSING
+        name: str
         """The name of the model."""
 
         default_max_tokens: int = 100

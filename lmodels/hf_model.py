@@ -1,5 +1,5 @@
 import os
-from dataclasses import MISSING, dataclass
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -29,7 +29,7 @@ class HFModel(Model):
         name: str = "HFModel"
         """The name of the model."""
 
-        architecture: str = MISSING
+        architecture: str
         """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
 
         do_sample: bool = True

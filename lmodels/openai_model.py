@@ -1,5 +1,5 @@
 import os
-from dataclasses import MISSING, dataclass, field
+from dataclasses import dataclass, field
 
 import httpx
 import numpy as np
@@ -40,7 +40,7 @@ class OpenAIModel(Model):
         use_azure: bool = False
         """Whether to use the Azure OpenAI API instead of the regular one."""
 
-        architecture: str = MISSING
+        architecture: str
         """
         The name of the model architecture to use.
         Must be listed as an OpenAI model architecture.
