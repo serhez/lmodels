@@ -35,9 +35,7 @@ Context = (
     | npt.NDArray[
         np.str_
     ]  # can be equivalent to List[str] or List[List[str]], depending on the shape
-    | Dataset[
-        str, str
-    ]  # equivalent to List[List[str]], where the length of each inner list is 1
+    | Dataset  # equivalent to List[List[str]], where the length of each inner list is 1
 )
 """
 The possible types of context input for the `generate` method and its derivatives.
