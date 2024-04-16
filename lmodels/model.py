@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
 import numpy as np
@@ -85,7 +85,7 @@ class Model(ABC):
         self._logger = logger
 
         if self._logger and config.debug:
-            self._logger.debug({"[Model.config]": self._config.__dict__})
+            self._logger.debug({"[Model.config]": asdict(self._config)})
 
         if config.use_progress_bar:
             self._log_progress = log_progress
