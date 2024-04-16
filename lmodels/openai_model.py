@@ -145,18 +145,6 @@ class OpenAIModel(Model):
         )
         output = np.array([choice.message.content for choice in output.choices])
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    "[OpenAIModel._generate_impl]": None,
-                    "Context": context,
-                    "Output": output,
-                    "Default role": self._DEFAULT_ROLE,
-                    "n_samples": n_samples,
-                    "max_tokens": max_tokens,
-                }
-            )
-
         return output
 
     def fine_tune(self, _):

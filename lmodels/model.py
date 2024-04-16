@@ -245,6 +245,17 @@ class Model(ABC):
             ]
         )
 
+        if self._logger and self._config.debug:
+            self._logger.debug(
+                {
+                    "[Model._generate_impl]": None,
+                    "Context": context,
+                    "Outputs": outputs,
+                    "N. samples": n_samples,
+                    "Max. tokens": max_tokens,
+                }
+            )
+
         return outputs
 
     def _call_impl(self, *args, **kwargs):

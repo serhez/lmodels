@@ -211,18 +211,6 @@ class LlamaModel(Model):
         )[0]
         output = self._tokenizer.decode(output)
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    "[LlamaModel._generate_impl]": None,
-                    "Context": context,
-                    "Input": input,
-                    "Output": output,
-                    "n_samples": n_samples,
-                    "max_tokens": max_tokens,
-                }
-            )
-
         return output
 
     def fine_tune(self, _):

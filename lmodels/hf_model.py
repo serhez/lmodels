@@ -143,18 +143,6 @@ class HFModel(Model):
         )
         output = np.array([sample["generated_text"][len(input) :] for sample in output])
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    "[HFModel._generate_impl]": None,
-                    "Context": context,
-                    "Input": input,
-                    "Output": output,
-                    "n_samples": n_samples,
-                    "max_tokens": max_tokens,
-                }
-            )
-
         return output
 
     def fine_tune(self, _):
