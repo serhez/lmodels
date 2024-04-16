@@ -1,5 +1,6 @@
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -7,7 +8,52 @@ import requests
 import transformers
 from mloggers import Logger
 
-from lmodels.model import Model
+from lmodels.model import AnnotatedConversation, Model
+
+
+@dataclass(kw_only=True)
+class MockResponse:
+    context: str
+    """A regex matching the input context string."""
+
+    outputs: list[tuple[str, float]]
+    """
+    A list of possible tuples (output, prob).
+    The probs must add up to 1.0.
+    """
+
+    def __post_init__(self):
+        """Checks if the probabilities add up to 1.0."""
+
+        sum = np.sum([prob for _, prob in self.outputs])
+        if not np.isclose(sum, 1.0):
+            raise ValueError(
+                f"The probabilities must add up to 1.0, but they add up to {sum}"
+            )
+
+
+@dataclass(kw_only=True)
+class MockResponseCollection:
+    matching: list[MockResponse] = field(default_factory=list)
+
+    """A list of possible responses to use matching a given context."""
+
+    default: list[tuple[str, float]] | None = None
+    """
+    The default responses to use if no regex matches.
+    Each response is a tuple (output, prob); the probs must add up to 1.0.
+    If not provided, a random response will be generated.
+    """
+
+    def __post_init__(self):
+        """Checks if the probabilities add up to 1.0."""
+
+        if self.default:
+            sum = np.sum([prob for _, prob in self.default])
+            if not np.isclose(sum, 1.0):
+                raise ValueError(
+                    f"The probabilities for the default responses must add up to 1.0, but they add up to {sum}"
+                )
 
 
 class MockModel(Model):
@@ -23,19 +69,30 @@ class MockModel(Model):
         name: str = "MockModel"
         """The name of the model."""
 
-        outputs: list[str] | None = None
-        """
-        The list of possible outputs to use.
-        - If not provided, sequences of random tokens of at most `max_tokens` length will be output.
-        """
+        responses: MockResponseCollection = field(
+            default_factory=MockResponseCollection
+        )
+        """The possible responses for the model."""
 
-        probs: list[float] | None = None
-        """
-        The probabilities for each of the `outputs`."
-        - If provided, they must add up to 1 and have the same length as the `outputs`.
-        - If `outputs` are not provided, this parameter will be ignored.
-        - If not provided, a uniform distribution will be used to sample the `outputs` (if they are given).
-        """
+        def __post_init__(self):
+            if type(self.responses) is not MockResponseCollection:
+                try:
+                    self.responses = MockResponseCollection(
+                        matching=[
+                            MockResponse(
+                                context=response.context,
+                                outputs=[tuple(o) for o in response.outputs],  # type: ignore[reportArgumentType]
+                            )
+                            for response in self.responses.matching
+                        ],
+                        default=None
+                        if self.responses.default is None
+                        else [tuple(o) for o in self.responses.default],
+                    )
+                except Exception as e:
+                    raise ValueError(
+                        "The responses must be a MockResponseCollection or a dictionary with the keys 'matching' and 'default'."
+                    ) from e
 
     def __init__(
         self,
@@ -56,39 +113,19 @@ class MockModel(Model):
         """
 
         super().__init__(config, logger)
+        self._config: MockModel.Config  # pyright is too dumb to understand this type
 
-        if config.outputs is not None and config.probs is not None:
-            if len(config.outputs) != len(config.probs):
-                raise ValueError(
-                    f"The lengths of `outputs` ({len(config.outputs)} and `probs` ({len(config.probs)}) must be the same"
-                )
-            elif np.sum(config.probs) != 1.0:
-                raise ValueError(
-                    f"`probs` add up to {np.sum(config.probs)}; they must add up to 1.0"
-                )
+        # Create a list of words
+        response = requests.get("https://www.mit.edu/~ecprice/wordlist.10000")
+        all_words = response.content.splitlines()
 
-        self._outputs = config.outputs
-        self._probs = config.probs
+        # Remove spaces from the words
+        all_words = [word.decode("utf-8") for word in all_words]
+        all_words = [word for word in all_words if all(char.isalpha() for char in word)]
 
-        if not self._outputs:
-            if self._logger:
-                self._logger.warning(
-                    "No outputs were provided. The model will generate random sequences."
-                )
-
-            # Create a list of words
-            response = requests.get("https://www.mit.edu/~ecprice/wordlist.10000")
-            all_words = response.content.splitlines()
-
-            # Remove spaces from the words
-            all_words = [word.decode("utf-8") for word in all_words]
-            all_words = [
-                word for word in all_words if all(char.isalpha() for char in word)
-            ]
-
-            # Cache the words into a file
-            with open("mock_model_cached_words.txt", "w") as file:
-                file.write("\n".join(all_words))
+        # Cache the words into a file
+        with open("mock_model_cached_words.txt", "w") as file:
+            file.write("\n".join(all_words))
 
     def __del__(self):
         """Deletes the cached words."""
@@ -103,16 +140,48 @@ class MockModel(Model):
         raise NotImplementedError("The mock model does not have a tokenizer.")
 
     def _generate_impl(
-        self, _, n_samples: int = 1, max_tokens: int | None = None
+        self,
+        context: AnnotatedConversation,
+        n_samples: int = 1,
+        max_tokens: int | None = None,
     ) -> npt.NDArray[np.str_]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
-        if self._outputs:
-            output = np.random.choice(self._outputs, size=(n_samples,), p=self._probs)
-        else:
+        input = "\n".join([message["content"] for message in context])
+        output = None
+
+        # A matching response
+        for response in self._config.responses.matching:
+            if re.match(response.context, input):
+                output = np.array(
+                    [
+                        np.random.choice(
+                            [output for output, _ in response.outputs],
+                            p=[prob for _, prob in response.outputs],
+                        )[:max_tokens]
+                        for _ in range(n_samples)
+                    ]
+                )
+
+        # A default response
+        if output is None and self._config.responses.default:
+            output = np.array(
+                [
+                    np.random.choice(
+                        [output for output, _ in self._config.responses.default],
+                        p=[prob for _, prob in self._config.responses.default],
+                    )[:max_tokens]
+                    for _ in range(n_samples)
+                ]
+            )
+
+        # A random response
+        if output is None:
             with open("mock_model_cached_words.txt", "r") as file:
-                words = file.readlines()
+                words = [
+                    line[:-1] for line in file.readlines()
+                ]  # Remove the newline character
             output = np.array(
                 [
                     " ".join(np.random.choice(words, size=max_tokens))
