@@ -150,7 +150,7 @@ class MockModel(Model):
     def usage(self) -> dict[str, Any]:
         return self._stats
 
-    def _generate_impl(
+    def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,

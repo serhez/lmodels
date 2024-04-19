@@ -68,6 +68,13 @@ class Model(ABC):
         use_progress_bar: bool = True
         """Whether to use a progress bar for long-running operations."""
 
+        calls_threshold: int | None = 100
+        """
+        The maximum number of calls to the model's forward pass.
+        This safeguard can be used to prevent infinite loops and other unexpected behavior.
+        It can be set to `None` to disable the safeguard.
+        """
+
         debug: bool = False
         """Whether to use debug-level logs."""
 
@@ -114,6 +121,74 @@ class Model(ABC):
         """
 
         ...
+
+    # TODO: return logprobs too
+    def generate(
+        self,
+        context: Context,
+        n_samples: int = 1,
+        max_tokens: int | None = None,
+        unsafe: bool = False,
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+        """
+        Generates the next given number of tokens in the sequence.
+        This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
+
+        ### Definitions
+        ----------
+        - A single independent message is the smallest unit of input.
+            - Represented by a single string or dictionary.
+            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
+            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
+        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
+            - Represented by a list of strings/dictionaries.
+        - Multiple messages/conversations yield multiple outputs.
+            - Represented by a list of lists of strings/dictionaries.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+        `unsafe`: whether to bypass expensive input validations.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - A dictionary with usage statistics containing:
+            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
+            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
+            - `n_calls`: the number of calls to the model's forward pass.
+
+        ### Raises
+        -------
+        `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        if isinstance(context, np.ndarray):
+            expected_n_calls = len(context)
+        elif isinstance(context, list):
+            expected_n_calls = len(context)
+        elif isinstance(context, Dataset):
+            expected_n_calls = len(context.test_set.input)
+        else:
+            expected_n_calls = 1
+
+        expected_n_calls *= n_samples
+
+        if self._config.calls_threshold:
+            assert (
+                self.usage["n_calls"] + expected_n_calls <= self._config.calls_threshold
+            ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
+
+        return self._generate_batch(
+            context, n_samples=n_samples, max_tokens=max_tokens, unsafe=unsafe
+        )
 
     def _parse_context(
         self,
@@ -200,8 +275,7 @@ class Model(ABC):
             f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
         )
 
-    # TODO: return logprobs too
-    def generate(
+    def _generate_batch(
         self,
         context: Context,
         n_samples: int = 1,
@@ -209,19 +283,8 @@ class Model(ABC):
         unsafe: bool = False,
     ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         """
-        Generates the next given number of tokens in the sequence.
+        Internal method for generating samples in batches.
         This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
-
-        ### Definitions
-        ----------
-        - A single independent message is the smallest unit of input.
-            - Represented by a single string or dictionary.
-            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
-            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
-        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
-            - Represented by a list of strings/dictionaries.
-        - Multiple messages/conversations yield multiple outputs.
-            - Represented by a list of lists of strings/dictionaries.
 
         ### Parameters
         ----------
@@ -256,7 +319,7 @@ class Model(ABC):
 
         outputs, ind_stats = zip(
             *[
-                self._generate_impl(input, n_samples=n_samples, max_tokens=max_tokens)
+                self._generate_single(input, n_samples=n_samples, max_tokens=max_tokens)
                 for input in context
             ]
         )
@@ -287,7 +350,7 @@ class Model(ABC):
     __call__: Callable[..., Any] = _call_impl
 
     @abstractmethod
-    def _generate_impl(
+    def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,

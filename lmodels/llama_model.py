@@ -145,7 +145,7 @@ class LlamaModel(Model):
     def usage(self) -> dict[str, Any]:
         return self._stats
 
-    def generate(
+    def _generate_batch(
         self,
         context: Context,
         n_samples: int = 1,
@@ -154,7 +154,7 @@ class LlamaModel(Model):
     ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
-            return np.array([self._generate_impl(context[0], n_samples, max_tokens)])
+            return np.array([self._generate_single(context[0], n_samples, max_tokens)])
 
         inputs = []
         for conversation in context:
@@ -214,7 +214,7 @@ class LlamaModel(Model):
 
         return outputs, stats
 
-    def _generate_impl(
+    def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
