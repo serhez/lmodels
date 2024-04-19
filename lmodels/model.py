@@ -103,6 +103,18 @@ class Model(ABC):
 
         ...
 
+    @property
+    @abstractmethod
+    def usage(self) -> dict[str, Any]:
+        """
+        The usage statistics of the model, containing:
+        - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
+        - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
+        - `n_calls`: the number of calls to the model's forward pass.
+        """
+
+        ...
+
     def _parse_context(
         self,
         context: Context,
@@ -195,7 +207,7 @@ class Model(ABC):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         """
         Generates the next given number of tokens in the sequence.
         This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
@@ -220,9 +232,13 @@ class Model(ABC):
 
         ### Returns
         -------
-        The generated tokens.
-        - The return type is a `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
-        - If `context` is a single string/dictionary, then `len(context)` is 1.
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - A dictionary with usage statistics containing:
+            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
+            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
+            - `n_calls`: the number of calls to the model's forward pass.
 
         ### Raises
         -------
@@ -238,12 +254,18 @@ class Model(ABC):
                 f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
             )
 
-        outputs = np.array(
-            [
+        outputs, ind_stats = zip(
+            *[
                 self._generate_impl(input, n_samples=n_samples, max_tokens=max_tokens)
                 for input in context
             ]
         )
+
+        agg_stats = {
+            "n_tokens_context": sum([stats["n_tokens_context"] for stats in ind_stats]),
+            "n_tokens_output": sum([stats["n_tokens_output"] for stats in ind_stats]),
+            "n_calls": sum([stats["n_calls"] for stats in ind_stats]),
+        }
 
         if self._logger and self._config.debug:
             self._logger.debug(
@@ -253,10 +275,11 @@ class Model(ABC):
                     "Outputs": outputs,
                     "N. samples": n_samples,
                     "Max. tokens": max_tokens,
+                    "Usage stats.": agg_stats,
                 }
             )
 
-        return outputs
+        return outputs, agg_stats
 
     def _call_impl(self, *args, **kwargs):
         return self.generate(*args, **kwargs)
@@ -269,7 +292,7 @@ class Model(ABC):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
 
@@ -283,7 +306,12 @@ class Model(ABC):
 
         ### Returns
         -------
-        A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
+        A tuple containing:
+        - A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
+        - A dictionary with usage statistics containing:
+            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
+            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
+            - `n_calls`: the number of calls to the model's forward pass.
         """
 
         ...

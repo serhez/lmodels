@@ -131,9 +131,19 @@ class LlamaModel(Model):
         # Create the generator
         self._generator = Llama(model, self._tokenizer)
 
+        self._stats = {
+            "n_tokens_context": 0,
+            "n_tokens_output": 0,
+            "n_calls": 0,
+        }
+
     @property
     def tokenizer(self) -> Any:
         return self._tokenizer
+
+    @property
+    def usage(self) -> dict[str, Any]:
+        return self._stats
 
     def generate(
         self,
@@ -141,7 +151,7 @@ class LlamaModel(Model):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
             return np.array([self._generate_impl(context[0], n_samples, max_tokens)])
@@ -172,6 +182,23 @@ class LlamaModel(Model):
             outputs.append([self._tokenizer.decode(result) for result in results])
         outputs = np.array(outputs).T
 
+        stats = {
+            "n_tokens_context": sum([len(input_tokens[0])]) * n_samples,
+            "n_tokens_output": sum(
+                sum(
+                    [
+                        len(self._tokenizer.encode(o, bos=True, eos=False))
+                        for o in output
+                    ]
+                )
+                for output in outputs
+            ),
+            "n_calls": n_samples,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
@@ -179,19 +206,20 @@ class LlamaModel(Model):
                     "Batch context": context,
                     "Batch input": inputs,
                     "Batch output": outputs,
-                    "n_samples": n_samples,
-                    "max_tokens": max_tokens,
+                    "N. samples": n_samples,
+                    "Max. tokens": max_tokens,
+                    "Usage stats.": stats,
                 }
             )
 
-        return outputs
+        return outputs, stats
 
     def _generate_impl(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -201,7 +229,7 @@ class LlamaModel(Model):
         input_tokens = [self._tokenizer.encode(input, bos=True, eos=False)]
         input_tokens = input_tokens * n_samples
 
-        output = self._generator.generate(
+        output, _ = self._generator.generate(
             prompt_tokens=input_tokens,
             max_gen_len=max_tokens,
             temperature=self._config.temperature,
@@ -209,9 +237,19 @@ class LlamaModel(Model):
             logprobs=False,
             echo=False,
         )[0]
+
+        stats = {
+            "n_tokens_context": sum([len(input_tokens[0])]) * n_samples,
+            "n_tokens_output": sum([len(tokens) for tokens in output]),
+            "n_calls": n_samples,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
         output = self._tokenizer.decode(output)
 
-        return output
+        return output, stats
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the Llama model.")

@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 import numpy as np
@@ -116,18 +117,28 @@ class OpenAIModel(Model):
 
             self._client = OpenAI()
 
+        self._stats = {
+            "n_tokens_context": 0,
+            "n_tokens_output": 0,
+            "n_calls": 0,
+        }
+
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         raise NotImplementedError(
             "The OpenAI model does not currently provide a tokenizer."
         )
 
+    @property
+    def usage(self) -> dict[str, Any]:
+        return self._stats
+
     def _generate_impl(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -150,7 +161,16 @@ class OpenAIModel(Model):
             ]
         )
 
-        return output
+        stats = {
+            "n_tokens_context": output.usage.prompt_tokens,
+            "n_tokens_output": output.usage.completion_tokens,
+            "n_calls": 1,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
+        return output, stats
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the OpenAI model.")

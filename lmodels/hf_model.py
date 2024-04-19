@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -66,9 +67,19 @@ class HFModel(Model):
             device_map=config.device,
         )
 
+        self._stats = {
+            "n_tokens_context": 0,
+            "n_tokens_output": 0,
+            "n_calls": 0,
+        }
+
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         return self._tokenizer
+
+    @property
+    def usage(self) -> dict[str, Any]:
+        return self._stats
 
     def generate(
         self,
@@ -76,7 +87,7 @@ class HFModel(Model):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
             return np.array([self._generate_impl(context[0], n_samples, max_tokens)])
@@ -106,6 +117,20 @@ class HFModel(Model):
             for j, sample in enumerate(output):
                 outputs[i, j] = sample["generated_text"][len(inputs[i]) :]
 
+        stats = {
+            "n_tokens_context": sum(
+                [len(self._tokenizer.encode(input)) for input in inputs]
+            ),
+            "n_tokens_output": sum(
+                sum([len(self._tokenizer.encode(o)) for o in output])
+                for output in outputs
+            ),
+            "n_calls": len(inputs),
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
@@ -113,19 +138,20 @@ class HFModel(Model):
                     "Batch context": context,
                     "Batch input": inputs,
                     "Batch output": outputs,
-                    "n_samples": n_samples,
-                    "max_tokens": max_tokens,
+                    "N. samples": n_samples,
+                    "Max. tokens": max_tokens,
+                    "Usage stats.": stats,
                 }
             )
 
-        return outputs
+        return outputs, stats
 
     def _generate_impl(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -143,7 +169,16 @@ class HFModel(Model):
         )
         output = np.array([sample["generated_text"][len(input) :] for sample in output])
 
-        return output
+        stats = {
+            "n_tokens_context": len(self._tokenizer.encode(input)),
+            "n_tokens_output": sum([len(self._tokenizer.encode(o)) for o in output]),
+            "n_calls": n_samples,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
+        return output, stats
 
     def fine_tune(self, _):
         raise NotImplementedError(

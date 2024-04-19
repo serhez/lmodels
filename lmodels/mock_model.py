@@ -1,6 +1,7 @@
 import os
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -127,6 +128,12 @@ class MockModel(Model):
         with open("mock_model_cached_words.txt", "w") as file:
             file.write("\n".join(all_words))
 
+        self._stats = {
+            "n_tokens_context": 0,
+            "n_tokens_output": 0,
+            "n_calls": 0,
+        }
+
     def __del__(self):
         """Deletes the cached words."""
 
@@ -139,12 +146,16 @@ class MockModel(Model):
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         raise NotImplementedError("The mock model does not have a tokenizer.")
 
+    @property
+    def usage(self) -> dict[str, Any]:
+        return self._stats
+
     def _generate_impl(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> npt.NDArray[np.str_]:
+    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -189,7 +200,16 @@ class MockModel(Model):
                 ]
             )
 
-        return output
+        stats = {
+            "n_tokens_context": sum([len(m["content"].split()) for m in context]),
+            "n_tokens_output": sum([len(o.split()) for o in output]),
+            "n_calls": n_samples,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
+        return output, stats
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the mock model.")
