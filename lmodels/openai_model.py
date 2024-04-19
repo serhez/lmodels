@@ -143,7 +143,12 @@ class OpenAIModel(Model):
             temperature=self._config.temperature,
             top_p=self._config.top_p,
         )
-        output = np.array([choice.message.content for choice in output.choices])
+        output = np.array(
+            [
+                "" if c.message.content is None else c.message.content
+                for c in output.choices
+            ]
+        )
 
         return output
 
