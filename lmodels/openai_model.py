@@ -156,6 +156,7 @@ class OpenAIModel(Model):
         )
         try:
             print(output.choices[0].finish_reason)
+            print(output.usage)
         except Exception as e:
             print(f"No finish reason: {e}")
         output = np.array(
