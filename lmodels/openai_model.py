@@ -154,26 +154,27 @@ class OpenAIModel(Model):
             temperature=self._config.temperature,
             top_p=self._config.top_p,
         )
-        try:
-            print(output.choices[0].finish_reason)
-            print(output.usage)
-        except Exception as e:
-            print(f"No finish reason: {e}")
+
+        stats = {
+            "n_tokens_context": output.usage.prompt_tokens
+            if output.usage is not None
+            else 0,
+            "n_tokens_output": output.usage.completion_tokens
+            if output.usage is not None
+            else 0,
+            "finish_reasons": [c.finish_reason for c in output.choices],
+            "n_calls": 1,
+        }
+        self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        self._stats["n_calls"] += stats["n_calls"]
+
         output = np.array(
             [
                 "" if c.message.content is None else c.message.content
                 for c in output.choices
             ]
         )
-
-        stats = {
-            "n_tokens_context": output.usage.prompt_tokens,
-            "n_tokens_output": output.usage.completion_tokens,
-            "n_calls": 1,
-        }
-        self._stats["n_tokens_context"] += stats["n_tokens_context"]
-        self._stats["n_tokens_output"] += stats["n_tokens_output"]
-        self._stats["n_calls"] += stats["n_calls"]
 
         return output, stats
 

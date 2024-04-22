@@ -157,7 +157,7 @@ class Model(ABC):
         A tuple containing:
         - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
             - If `context` is a single string/dictionary, then `len(context)` is 1.
-        - A dictionary with usage statistics containing:
+        - A dictionary with usage statistics including (but not limited to, depending on the model):
             - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
             - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
             - `n_calls`: the number of calls to the model's forward pass.
@@ -298,7 +298,7 @@ class Model(ABC):
         A tuple containing:
         - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
             - If `context` is a single string/dictionary, then `len(context)` is 1.
-        - A dictionary with usage statistics containing:
+        - A dictionary with usage statistics including (but not limited to, depending on the model):
             - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
             - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
             - `n_calls`: the number of calls to the model's forward pass.
@@ -324,16 +324,22 @@ class Model(ABC):
             ]
         )
 
-        agg_stats = {
+        # Common usage statistics
+        agg_stats: dict[str, Any] = {
             "n_tokens_context": sum([stats["n_tokens_context"] for stats in ind_stats]),
             "n_tokens_output": sum([stats["n_tokens_output"] for stats in ind_stats]),
             "n_calls": sum([stats["n_calls"] for stats in ind_stats]),
         }
 
+        # Model-specific usage statistics
+        for key in ind_stats[0]:
+            if key not in agg_stats:
+                agg_stats[key] = [stats[key] for stats in ind_stats]
+
         if self._logger and self._config.debug:
             self._logger.debug(
                 {
-                    "[Model.generate]": None,
+                    f"[{self.__class__.__name__}.generate]": None,
                     "Context": context,
                     "Outputs": outputs,
                     "N. samples": n_samples,
@@ -371,7 +377,7 @@ class Model(ABC):
         -------
         A tuple containing:
         - A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
-        - A dictionary with usage statistics containing:
+        - A dictionary with usage statistics including (but not limited to, depending on the model):
             - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
             - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
             - `n_calls`: the number of calls to the model's forward pass.
