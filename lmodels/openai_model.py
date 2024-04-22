@@ -154,6 +154,10 @@ class OpenAIModel(Model):
             temperature=self._config.temperature,
             top_p=self._config.top_p,
         )
+        try:
+            print(output.choices[0].finish_reason)
+        except Exception as e:
+            print(f"No finish reason: {e}")
         output = np.array(
             [
                 "" if c.message.content is None else c.message.content
