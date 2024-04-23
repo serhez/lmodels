@@ -165,9 +165,7 @@ class OpenAIModel(Model):
             "finish_reasons": [c.finish_reason for c in output.choices],
             "n_calls": 1,
         }
-        self._stats["n_tokens_context"] += stats["n_tokens_context"]
-        self._stats["n_tokens_output"] += stats["n_tokens_output"]
-        self._stats["n_calls"] += stats["n_calls"]
+        self._stats = {k: self._stats.get(k, 0) + v for k, v in stats.items()}
 
         for c in output.choices:
             if c.message.content is None:

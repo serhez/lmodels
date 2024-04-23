@@ -205,9 +205,7 @@ class MockModel(Model):
             "n_tokens_output": sum([len(o.split()) for o in output]),
             "n_calls": n_samples,
         }
-        self._stats["n_tokens_context"] += stats["n_tokens_context"]
-        self._stats["n_tokens_output"] += stats["n_tokens_output"]
-        self._stats["n_calls"] += stats["n_calls"]
+        self._stats = {k: self._stats.get(k, 0) + v for k, v in stats.items()}
 
         return output, stats
 
