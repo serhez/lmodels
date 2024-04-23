@@ -169,6 +169,13 @@ class OpenAIModel(Model):
         self._stats["n_tokens_output"] += stats["n_tokens_output"]
         self._stats["n_calls"] += stats["n_calls"]
 
+        for c in output.choices:
+            if c.message.content is None:
+                if self._logger:
+                    self._logger.warn(
+                        f"[OpenAIModel.generate] Null response with finish reason: {c.finish_reason}"
+                    )
+
         output = np.array(
             [
                 "" if c.message.content is None else c.message.content
