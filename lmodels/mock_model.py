@@ -128,12 +128,6 @@ class MockModel(Model):
         with open("mock_model_cached_words.txt", "w") as file:
             file.write("\n".join(all_words))
 
-        self._stats = {
-            "n_tokens_context": 0,
-            "n_tokens_output": 0,
-            "n_calls": 0,
-        }
-
     def __del__(self):
         """Deletes the cached words."""
 
@@ -145,10 +139,6 @@ class MockModel(Model):
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         raise NotImplementedError("The mock model does not have a tokenizer.")
-
-    @property
-    def usage(self) -> dict[str, Any]:
-        return self._stats
 
     def _generate_single(
         self,
@@ -205,7 +195,7 @@ class MockModel(Model):
             "n_tokens_output": sum([len(o.split()) for o in output]),
             "n_calls": n_samples,
         }
-        self._stats = {k: self._stats.get(k, 0) + v for k, v in stats.items()}
+        self._record_model_usage(stats)
 
         return output, stats
 

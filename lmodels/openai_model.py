@@ -117,21 +117,11 @@ class OpenAIModel(Model):
 
             self._client = OpenAI()
 
-        self._stats = {
-            "n_tokens_context": 0,
-            "n_tokens_output": 0,
-            "n_calls": 0,
-        }
-
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
         raise NotImplementedError(
             "The OpenAI model does not currently provide a tokenizer."
         )
-
-    @property
-    def usage(self) -> dict[str, Any]:
-        return self._stats
 
     def _generate_single(
         self,
@@ -165,7 +155,7 @@ class OpenAIModel(Model):
             "finish_reasons": [c.finish_reason for c in output.choices],
             "n_calls": 1,
         }
-        self._stats = {k: self._stats.get(k, 0) + v for k, v in stats.items()}
+        self._record_model_usage(stats)
 
         for c in output.choices:
             if c.message.content is None:

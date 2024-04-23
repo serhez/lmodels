@@ -90,6 +90,11 @@ class Model(ABC):
 
         self._config = config
         self._logger = logger
+        self._stats = {
+            "n_tokens_context": 0,
+            "n_tokens_output": 0,
+            "n_calls": 0,
+        }
 
         if self._logger and config.debug:
             self._logger.debug({"[Model.config]": asdict(self._config)})
@@ -111,7 +116,6 @@ class Model(ABC):
         ...
 
     @property
-    @abstractmethod
     def usage(self) -> dict[str, Any]:
         """
         The usage statistics of the model, containing:
@@ -120,7 +124,15 @@ class Model(ABC):
         - `n_calls`: the number of calls to the model's forward pass.
         """
 
-        ...
+        return self._stats
+
+    def _record_model_usage(self, stats: dict[str, Any]):
+        if "n_tokens_context" in stats:
+            self._stats["n_tokens_context"] += stats["n_tokens_context"]
+        if "n_tokens_output" in stats:
+            self._stats["n_tokens_output"] += stats["n_tokens_output"]
+        if "n_calls" in stats:
+            self._stats["n_calls"] += stats["n_calls"]
 
     # TODO: return logprobs too
     def generate(

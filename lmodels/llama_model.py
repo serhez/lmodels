@@ -131,19 +131,9 @@ class LlamaModel(Model):
         # Create the generator
         self._generator = Llama(model, self._tokenizer)
 
-        self._stats = {
-            "n_tokens_context": 0,
-            "n_tokens_output": 0,
-            "n_calls": 0,
-        }
-
     @property
     def tokenizer(self) -> Any:
         return self._tokenizer
-
-    @property
-    def usage(self) -> dict[str, Any]:
-        return self._stats
 
     def _generate_batch(
         self,
@@ -195,9 +185,7 @@ class LlamaModel(Model):
             ),
             "n_calls": n_samples,
         }
-        self._stats["n_tokens_context"] += stats["n_tokens_context"]
-        self._stats["n_tokens_output"] += stats["n_tokens_output"]
-        self._stats["n_calls"] += stats["n_calls"]
+        self._record_model_usage(stats)
 
         if self._logger and self._config.debug:
             self._logger.debug(
@@ -243,7 +231,7 @@ class LlamaModel(Model):
             "n_tokens_output": sum([len(tokens) for tokens in output]),
             "n_calls": n_samples,
         }
-        self._stats = {k: self._stats.get(k, 0) + v for k, v in stats.items()}
+        self._record_model_usage(stats)
 
         output = self._tokenizer.decode(output)
 
