@@ -70,6 +70,9 @@ class MockModel(Model):
         name: str = "MockModel"
         """The name of the model."""
 
+        delete_word_cache: bool = False
+        """Whether to delete the file containing the word cache upon the object's destruction."""
+
         responses: MockResponseCollection = field(
             default_factory=MockResponseCollection
         )
@@ -95,6 +98,9 @@ class MockModel(Model):
                         "The responses must be a MockResponseCollection or a dictionary with the keys 'matching' and 'default'."
                     ) from e
 
+    _WORDS_CACHE_PATH = "mock_model_cached_words.txt"
+    _WORDS_URL = "https://www.mit.edu/~ecprice/wordlist.10000"
+
     def __init__(
         self,
         config: Config,
@@ -116,8 +122,11 @@ class MockModel(Model):
         super().__init__(config, logger)
         self._config: MockModel.Config  # pyright is too dumb to understand this type
 
+        if os.path.isfile(self._WORDS_CACHE_PATH):
+            return
+
         # Create a list of words
-        response = requests.get("https://www.mit.edu/~ecprice/wordlist.10000")
+        response = requests.get(self._WORDS_URL)
         all_words = response.content.splitlines()
 
         # Remove spaces from the words
@@ -125,16 +134,17 @@ class MockModel(Model):
         all_words = [word for word in all_words if all(char.isalpha() for char in word)]
 
         # Cache the words into a file
-        with open("mock_model_cached_words.txt", "w") as file:
+        with open(self._WORDS_CACHE_PATH, "w") as file:
             file.write("\n".join(all_words))
 
     def __del__(self):
         """Deletes the cached words."""
 
-        try:
-            os.remove("mock_model_cached_words.txt")
-        except FileNotFoundError:
-            pass
+        if self._config.delete_word_cache:
+            try:
+                os.remove(self._WORDS_CACHE_PATH)
+            except FileNotFoundError:
+                pass
 
     @property
     def tokenizer(self) -> transformers.PreTrainedTokenizer:
@@ -179,7 +189,7 @@ class MockModel(Model):
 
         # A random response
         if output is None:
-            with open("mock_model_cached_words.txt", "r") as file:
+            with open(self._WORDS_CACHE_PATH, "r") as file:
                 words = [
                     line[:-1] for line in file.readlines()
                 ]  # Remove the newline character
