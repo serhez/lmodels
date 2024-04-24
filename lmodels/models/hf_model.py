@@ -5,7 +5,6 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import torch
-from mloggers import Logger
 
 try:
     import transformers
@@ -15,6 +14,7 @@ except ImportError:
     )
 
 from lmodels.model import AnnotatedConversation, Context, Model
+from lmodels.protocols import Logger
 
 
 class HFModel(Model):
@@ -46,7 +46,7 @@ class HFModel(Model):
         ### Parameters
         ----------
         `config`: the configuration for the Hugging Face model.
-        [optional] `logger`: the logger to be used.
+        [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
         """
 
         super().__init__(config, logger)
@@ -119,18 +119,17 @@ class HFModel(Model):
         }
         self._record_model_usage(stats)
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    "[HFModel.generate]": None,
-                    "Batch context": context,
-                    "Batch input": inputs,
-                    "Batch output": outputs,
-                    "N. samples": n_samples,
-                    "Max. tokens": max_tokens,
-                    "Usage stats.": stats,
-                }
-            )
+        self._logger.debug(
+            {
+                "[HFModel.generate]": None,
+                "Batch context": context,
+                "Batch input": inputs,
+                "Batch output": outputs,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Usage stats.": stats,
+            }
+        )
 
         return outputs, stats
 

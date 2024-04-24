@@ -1,6 +1,6 @@
 # LModels
 
-A collection of interfaces to interact with different language models, by Aalto LaReL research group.
+A collection of interfaces to interact with different language models.
 
 ## Developing new models
 

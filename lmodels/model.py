@@ -5,9 +5,9 @@ from typing import Any, Callable
 import numpy as np
 import numpy.typing as npt
 import torch
-from ldata import Dataset  # TODO: Drop this dependency with own Dataset interface
-from mloggers import Logger
-from mloggers.progress import log_progress
+
+from lmodels.protocols import Dataset, Logger
+from lmodels.utils import NullLogger
 
 Message = str
 """A single simple message."""
@@ -65,9 +65,6 @@ class Model(ABC):
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
         """The device which will be used to run the model."""
 
-        use_progress_bar: bool = True
-        """Whether to use a progress bar for long-running operations."""
-
         calls_threshold: int | None = 100
         """
         The maximum number of calls to the model's forward pass.
@@ -85,24 +82,21 @@ class Model(ABC):
         ### Parameters
         ----------
         `config`: the configuration of the model.
-        [optional] `logger`: the logger to be used.
+        [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
         """
 
         self._config = config
-        self._logger = logger
+        if logger is None:
+            self._logger = NullLogger()
+        else:
+            self._logger = logger
         self._stats = {
             "n_tokens_context": 0,
             "n_tokens_output": 0,
             "n_calls": 0,
         }
 
-        if self._logger and config.debug:
-            self._logger.debug({"[Model.config]": asdict(self._config)})
-
-        if config.use_progress_bar:
-            self._log_progress = log_progress
-        else:
-            self._log_progress = lambda x: x
+        self._logger.debug({"[Model.config]": asdict(self._config)})
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self._config.name})"
@@ -187,7 +181,7 @@ class Model(ABC):
         elif isinstance(context, list):
             expected_n_calls = len(context)
         elif isinstance(context, Dataset):
-            expected_n_calls = len(context.test_set.input)
+            expected_n_calls = len(context.test_set.inputs)
         else:
             expected_n_calls = 1
 

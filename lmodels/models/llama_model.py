@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import torch
-from mloggers import Logger
 
 try:
     from fairscale.nn.model_parallel.initialize import (
@@ -28,6 +27,7 @@ except ImportError:
 
 
 from lmodels.model import AnnotatedConversation, Context, Model
+from lmodels.protocols import Logger
 
 
 class LlamaModel(Model):
@@ -76,7 +76,7 @@ class LlamaModel(Model):
         ### Parameters
         ----------
         `config`: the configuration for the Llama model.
-        [optional] `logger`: the logger to be used.
+        [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
         """
 
         super().__init__(config, logger)
@@ -187,18 +187,17 @@ class LlamaModel(Model):
         }
         self._record_model_usage(stats)
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    "[LlamaModel.generate]": None,
-                    "Batch context": context,
-                    "Batch input": inputs,
-                    "Batch output": outputs,
-                    "N. samples": n_samples,
-                    "Max. tokens": max_tokens,
-                    "Usage stats.": stats,
-                }
-            )
+        self._logger.debug(
+            {
+                "[LlamaModel.generate]": None,
+                "Batch context": context,
+                "Batch input": inputs,
+                "Batch output": outputs,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Usage stats.": stats,
+            }
+        )
 
         return outputs, stats
 

@@ -1,8 +1,8 @@
-from .hf_model import HFModel
-from .llama_model import LlamaModel
-from .mock_model import MockModel, MockResponse, MockResponseCollection
 from .model import Model
-from .openai_model import OpenAIModel
+from .models.hf_model import HFModel
+from .models.llama_model import LlamaModel
+from .models.mock_model import MockModel, MockResponse, MockResponseCollection
+from .models.openai_model import OpenAIModel
 
 __all__ = [
     "HFModel",

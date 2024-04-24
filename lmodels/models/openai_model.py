@@ -6,7 +6,6 @@ import httpx
 import numpy as np
 import numpy.typing as npt
 import transformers
-from mloggers import Logger
 
 try:
     from openai import AzureOpenAI, OpenAI
@@ -14,6 +13,7 @@ except ImportError:
     raise ImportError("You must install the `openai` package to use the OpenAI models.")
 
 from lmodels.model import AnnotatedConversation, Model
+from lmodels.protocols import Logger
 
 
 class OpenAIModel(Model):
@@ -71,7 +71,7 @@ class OpenAIModel(Model):
         ### Parameters
         ----------
         `config`: the configuration for the OpenAI model.
-        [optional] `logger`: the logger to be used.
+        [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
         """
 
         super().__init__(config, logger)
@@ -83,14 +83,13 @@ class OpenAIModel(Model):
             for key, value in config.url_replacements.items():
                 if key in request.url.path:
                     request.url = request.url.copy_with(path=value)
-            if self._logger and self._config.debug:
-                self._logger.debug(
-                    {
-                        "[OpenAIModel._update_base_url]": None,
-                        "Initial URL": str(init_url),
-                        "New URL": str(request.url),
-                    }
-                )
+            self._logger.debug(
+                {
+                    "[OpenAIModel._update_base_url]": None,
+                    "Initial URL": str(init_url),
+                    "New URL": str(request.url),
+                }
+            )
 
         if config.use_azure:
             assert (
@@ -159,10 +158,9 @@ class OpenAIModel(Model):
 
         for c in output.choices:
             if c.message.content is None:
-                if self._logger:
-                    self._logger.warn(
-                        f"[OpenAIModel.generate] Null response with finish reason: {c.finish_reason}"
-                    )
+                self._logger.warn(
+                    f"[OpenAIModel.generate] Null response with finish reason: {c.finish_reason}"
+                )
 
         output = np.array(
             [

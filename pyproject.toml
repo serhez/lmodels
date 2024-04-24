@@ -19,14 +19,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "mloggers",
-    "numpy",
-    "omegaconf",
-    "requests",
-    "torch",
-    "ldata@git+https://github.com/serhez/ldata.git",
-]
+dependencies = ["numpy", "omegaconf", "requests", "torch"]
 
 [project.urls]
 Homepage = "https://github.com/serhez/lmodels"

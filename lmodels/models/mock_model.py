@@ -7,9 +7,9 @@ import numpy as np
 import numpy.typing as npt
 import requests
 import transformers
-from mloggers import Logger
 
 from lmodels.model import AnnotatedConversation, Model
+from lmodels.protocols import Logger
 
 
 @dataclass(kw_only=True)
@@ -106,7 +106,7 @@ class MockModel(Model):
         ### Parameters
         ----------
         `config`: the configuration for the mock model.
-        [optional] `logger`: the logger to be used.
+        [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
 
         ### Raises
         ------
