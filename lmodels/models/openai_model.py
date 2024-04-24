@@ -159,7 +159,12 @@ class OpenAIModel(Model):
         for c in output.choices:
             if c.message.content is None:
                 self._logger.warn(
-                    f"[OpenAIModel.generate] Null response with finish reason: {c.finish_reason}"
+                    {
+                        "[OpenAIModel.generate] Obtained null response": None,
+                        "Finish reason": c.finish_reason,
+                        "Context": context,
+                        "Action": "Outputting an empty string for this completion.",
+                    }
                 )
 
         output = np.array(

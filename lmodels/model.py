@@ -93,7 +93,9 @@ class Model(ABC):
             "n_calls": 0,
         }
 
-        self._logger.debug({"[Model.config]": asdict(self._config)})
+        self._logger.debug(
+            {f"[{self.__class__.__name__}.config]": asdict(self._config)}
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self._config.name})"
@@ -315,10 +317,9 @@ class Model(ABC):
 
         context = self._parse_context(context, unsafe=unsafe)
 
-        if self._logger:
-            self._logger.info(
-                f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
-            )
+        self._logger.info(
+            f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
+        )
 
         outputs, ind_stats = zip(
             *[
