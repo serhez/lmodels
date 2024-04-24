@@ -72,9 +72,6 @@ class Model(ABC):
         It can be set to `None` to disable the safeguard.
         """
 
-        debug: bool = False
-        """Whether to use debug-level logs."""
-
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initialize the model.
@@ -342,17 +339,16 @@ class Model(ABC):
             if key not in agg_stats:
                 agg_stats[key] = [stats[key] for stats in ind_stats]
 
-        if self._logger and self._config.debug:
-            self._logger.debug(
-                {
-                    f"[{self.__class__.__name__}.generate]": None,
-                    "Context": context,
-                    "Outputs": outputs,
-                    "N. samples": n_samples,
-                    "Max. tokens": max_tokens,
-                    "Usage stats.": agg_stats,
-                }
-            )
+        self._logger.debug(
+            {
+                f"[{self.__class__.__name__}.generate]": None,
+                "Context": context,
+                "Outputs": outputs,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Usage stats.": agg_stats,
+            }
+        )
 
         return outputs, agg_stats
 
