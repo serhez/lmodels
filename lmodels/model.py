@@ -327,6 +327,8 @@ class Model(ABC):
                 for input in context
             ]
         )
+        outputs = np.array(list(outputs))
+        ind_stats = list(ind_stats)
 
         # Common usage statistics
         agg_stats: dict[str, Any] = {
