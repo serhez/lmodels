@@ -98,6 +98,10 @@ class MockModel(Model):
                         "The responses must be a MockResponseCollection or a dictionary with the keys 'matching' and 'default'."
                     ) from e
 
+    @property
+    def config_cls(self) -> type[Config]:
+        return MockModel.Config
+
     _WORDS_CACHE_PATH = "mock_model_cached_words.txt"
     _WORDS_URL = "https://www.mit.edu/~ecprice/wordlist.10000"
 

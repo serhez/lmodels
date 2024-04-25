@@ -72,6 +72,13 @@ class Model(ABC):
         It can be set to `None` to disable the safeguard.
         """
 
+    @property
+    @abstractmethod
+    def config_cls(self) -> type[Config]:
+        """The configuration class of the model."""
+
+        ...
+
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initialize the model.

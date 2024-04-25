@@ -59,6 +59,10 @@ class OpenAIModel(Model):
         The keys are the patterns to be identified in the `URL.path`, and the values are the whole new `URL.path` to be used instead.
         """
 
+    @property
+    def config_cls(self) -> type[Config]:
+        return OpenAIModel.Config
+
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the OpenAI model.

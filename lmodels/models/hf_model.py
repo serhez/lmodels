@@ -39,6 +39,10 @@ class HFModel(Model):
         top_k: int = 10
         """The number of top tokens to consider when sampling."""
 
+    @property
+    def config_cls(self) -> type[Config]:
+        return HFModel.Config
+
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the Hugging Face model.

@@ -69,6 +69,10 @@ class LlamaModel(Model):
         max_batch_size: int = 8
         """The maximum batch size for the model."""
 
+    @property
+    def config_cls(self) -> type[Config]:
+        return LlamaModel.Config
+
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the Llama model.
