@@ -242,12 +242,16 @@ class Model(ABC):
             return [[context]]
 
         # Single conversation
-        elif (isinstance(context, np.ndarray) and context.ndim == 1) or (
-            isinstance(context, list) and isinstance(context[0], str)
-        ):
-            return [[{"content": input} for input in context]]
-        elif isinstance(context, list) and isinstance(
-            context[0], dict
+        elif (
+            (isinstance(context, np.ndarray) and context.ndim == 1)
+            or isinstance(context, list)
+        ) and all(isinstance(context[i], str) for i in range(len(context))):
+            return [[{"content": input} for input in context]]  # type: ignore[reportReturnType]
+        elif (
+            (isinstance(context, np.ndarray) and context.ndim == 1)
+            or isinstance(context, list)
+        ) and all(
+            isinstance(context[i], dict) for i in range(len(context))
         ):  # with model-specific fields
             if not unsafe:
                 for message in context:
@@ -255,24 +259,46 @@ class Model(ABC):
                         raise ValueError(
                             "All message dictionaries must contain a `content` field."
                         )
-            return [context]
+            return [context]  # type: ignore[reportReturnType]
 
         # Multiple messages/conversations
-        elif (isinstance(context, np.ndarray) and context.ndim == 2) or (
-            isinstance(context, list)
-            and isinstance(context[0], list)
-            and isinstance(context[0][0], str)
+        elif (
+            (
+                (isinstance(context, np.ndarray) and context.ndim == 2)
+                or isinstance(context, list)
+            )
+            and all(
+                (
+                    (isinstance(context[i], np.ndarray) and context[i].ndim == 1)  # type: ignore[reportAttributeAccessIssue]
+                    or isinstance(context[i], list)
+                )
+                for i in range(len(context))
+            )
+            and all(
+                isinstance(context[i][j], str)  # type: ignore[reportArgumentType]
+                for i, j in np.ndindex(np.array(context).shape)
+            )
         ):
-            return [
+            return [  # type: ignore[reportReturnType]
                 [{"content": message} for message in conversation]
                 for conversation in context
             ]
-        elif isinstance(context, Dataset):
-            return [[{"content": input}] for input in context.test_set.inputs]
         elif (
-            isinstance(context, list)
-            and isinstance(context[0], list)
-            and isinstance(context[0][0], dict)
+            (
+                (isinstance(context, np.ndarray) and context.ndim == 2)
+                or isinstance(context, list)
+            )
+            and all(
+                (
+                    (isinstance(context[i], np.ndarray) and context[i].ndim == 1)  # type: ignore[reportAttributeAccessIssue]
+                    or isinstance(context[i], list)
+                )
+                for i in range(len(context))
+            )
+            and all(
+                isinstance(context[i][j], dict)  # type: ignore[reportArgumentType]
+                for i, j in np.ndindex(np.array(context).shape)
+            )
         ):
             if not unsafe:
                 for conversation in context:
@@ -281,7 +307,9 @@ class Model(ABC):
                             raise ValueError(
                                 "All message dictionaries must contain a `content` field."
                             )
-            return context
+            return context  # type: ignore[reportReturnType]
+        elif isinstance(context, Dataset):
+            return [[{"content": input}] for input in context.test_set.inputs]
 
         raise ValueError(
             f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
