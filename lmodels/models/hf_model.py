@@ -68,7 +68,7 @@ class HFModel(Model):
             token=api_token,
             model=config.architecture,
             torch_dtype=torch.float16,
-            device_map=config.device,
+            device_map="auto",
         )
 
     @property
