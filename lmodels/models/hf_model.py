@@ -7,7 +7,12 @@ import numpy.typing as npt
 import torch
 
 try:
-    import transformers
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        PreTrainedTokenizer,
+        pipeline,
+    )
 except ImportError:
     raise ImportError(
         "You must install the `transformers[torch]` package to use the Hugging Face models."
@@ -39,6 +44,12 @@ class HFModel(Model):
         top_k: int = 10
         """The number of top tokens to consider when sampling."""
 
+        dtype: torch.dtype = torch.bfloat16
+        """The data type to use for the model's weights."""
+
+        attn_implementation: str = "flash_attention_2"
+        """The implementation of the attention mechanism to use."""
+
     @property
     def config_cls(self) -> type[Config]:
         return HFModel.Config
@@ -54,25 +65,31 @@ class HFModel(Model):
         """
 
         super().__init__(config, logger)
+        self._config: HFModel.Config  # pyright is too dumb to infer this
 
         assert (
             "HF_API_TOKEN" in os.environ
         ), "You must set the `HF_API_TOKEN` environment variable to use the Hugging Face models."
         api_token = os.environ["HF_API_TOKEN"]
 
-        self._tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model = AutoModelForCausalLM.from_pretrained(
+            config.architecture,
+            torch_dtype=config.dtype,
+            attn_implementation=config.attn_implementation,
+        )
+        self._tokenizer = AutoTokenizer.from_pretrained(
             config.architecture, token=api_token
         )
-        self._pipeline = transformers.pipeline(
+        self._pipeline = pipeline(
             "text-generation",
             token=api_token,
-            model=config.architecture,
-            torch_dtype=torch.float16,
+            model=model,
+            torch_dtype=config.dtype,
             device_map="auto",
         )
 
     @property
-    def tokenizer(self) -> transformers.PreTrainedTokenizer:
+    def tokenizer(self) -> PreTrainedTokenizer:
         return self._tokenizer
 
     def _generate_batch(
@@ -104,12 +121,13 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
+            return_text=True,
         )
 
-        outputs = np.empty((len(inputs), n_samples), dtype=np.str_)
+        response = np.empty((len(inputs), n_samples), dtype=np.str_)
         for i, output in enumerate(outputs):
             for j, sample in enumerate(output):
-                outputs[i, j] = sample["generated_text"][len(inputs[i]) :]
+                response[i, j] = sample["generated_text"][len(inputs[i]) :]
 
         stats = {
             "n_tokens_context": sum(
@@ -117,7 +135,7 @@ class HFModel(Model):
             ),
             "n_tokens_output": sum(
                 sum([len(self._tokenizer.encode(o)) for o in output])
-                for output in outputs
+                for output in response
             ),
             "n_calls": len(inputs),
         }
@@ -128,14 +146,14 @@ class HFModel(Model):
                 "[HFModel.generate]": None,
                 "Batch context": context,
                 "Batch input": inputs,
-                "Batch output": outputs,
+                "Batch output": response,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
                 "Usage stats.": stats,
             }
         )
 
-        return outputs, stats
+        return response, stats
 
     def _generate_single(
         self,
@@ -157,17 +175,30 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,
+            return_text=True,
         )
-        output = np.array([sample["generated_text"][len(input) :] for sample in output])
+        if output is None:
+            response = np.array([""] * n_samples)
+        elif isinstance(output, dict):
+            response = np.array(
+                [
+                    ""
+                    if sample is None or sample["generated_text"] is None
+                    else sample["generated_text"][len(input) :]
+                    for sample in output
+                ]
+            )
+        else:
+            raise ValueError(f"Unexpected output type: {type(output)}")
 
         stats = {
             "n_tokens_context": len(self._tokenizer.encode(input)),
-            "n_tokens_output": sum([len(self._tokenizer.encode(o)) for o in output]),
+            "n_tokens_output": sum([len(self._tokenizer.encode(o)) for o in response]),
             "n_calls": n_samples,
         }
         self._record_model_usage(stats)
 
-        return output, stats
+        return response, stats
 
     def fine_tune(self, _):
         raise NotImplementedError(
