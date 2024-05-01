@@ -47,7 +47,7 @@ class HFModel(Model):
         dtype: torch.dtype = torch.bfloat16
         """The data type to use for the model's weights."""
 
-        attn_implementation: str = "flash_attention_2"
+        attention_type: str = "flash_attention_2"
         """The implementation of the attention mechanism to use."""
 
     @property
@@ -75,7 +75,7 @@ class HFModel(Model):
         model = AutoModelForCausalLM.from_pretrained(
             config.architecture,
             torch_dtype=config.dtype,
-            attn_implementation=config.attn_implementation,
+            attn_implementation=config.attention_type,
         )
         self._tokenizer = AutoTokenizer.from_pretrained(
             config.architecture, token=api_token
