@@ -4,7 +4,8 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import torch
+
+from lmodels.utils.types import DType
 
 try:
     from transformers import (
@@ -44,8 +45,13 @@ class HFModel(Model):
         top_k: int = 10
         """The number of top tokens to consider when sampling."""
 
-        dtype: torch.dtype = torch.bfloat16
-        """The data type to use for the model's weights."""
+        dtype: DType = DType.bfloat16
+        """
+        The data type to use for the model's weights.
+        Note that the type of this attribute is the enum `DType` from `lmodels.utils.types`, not a `torch.dtype`.
+        - This is necessary for this config to be composable by `hydra`, as it does not support custom classes (e.g., `torch.dtype`) as attribute types.
+        - Internally, the `torch.dtype` is inferred from this attribute.
+        """
 
         attention_type: str = "flash_attention_2"
         """The implementation of the attention mechanism to use."""
@@ -74,7 +80,7 @@ class HFModel(Model):
 
         model = AutoModelForCausalLM.from_pretrained(
             config.architecture,
-            torch_dtype=config.dtype,
+            torch_dtype=config.dtype.torch,
             attn_implementation=config.attention_type,
         )
         self._tokenizer = AutoTokenizer.from_pretrained(
@@ -84,7 +90,7 @@ class HFModel(Model):
             "text-generation",
             token=api_token,
             model=model,
-            torch_dtype=config.dtype,
+            torch_dtype=config.dtype.torch,
             device_map="auto",
         )
 
