@@ -83,17 +83,9 @@ class OpenAIModel(Model):
         self._config = config
 
         def _update_base_url(request: httpx.Request) -> None:
-            init_url = request.url
             for key, value in config.url_replacements.items():
                 if key in request.url.path:
                     request.url = request.url.copy_with(path=value)
-            self._logger.debug(
-                {
-                    "[OpenAIModel._update_base_url]": None,
-                    "Initial URL": str(init_url),
-                    "New URL": str(request.url),
-                }
-            )
 
         if config.use_azure:
             assert (
