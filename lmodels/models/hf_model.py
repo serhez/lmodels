@@ -37,18 +37,6 @@ class HFModel(Model):
         name: str = "HFModel"
         """The name of the model."""
 
-        device: str = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
-        """
-        The device which will be used to run the model.
-        Make sure to use either \"cuda\" or \"mps\"; it is not a brilliant idea to use \"cpu\" with LLMs.
-        """
-
         architecture: str
         """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
 
@@ -95,7 +83,8 @@ class HFModel(Model):
             config.architecture,
             torch_dtype=config.dtype.torch,
             attn_implementation=config.attention_type,
-        ).to(self._config.device)
+            device_map="auto",
+        )
         self._tokenizer = AutoTokenizer.from_pretrained(
             config.architecture, token=api_token
         )
