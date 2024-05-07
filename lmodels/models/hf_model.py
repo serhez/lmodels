@@ -103,6 +103,7 @@ class HFModel(Model):
             "text-generation",
             token=api_token,
             model=model,
+            tokenizer=self._tokenizer,
             torch_dtype=config.dtype.torch,
             device_map="auto",
         )
