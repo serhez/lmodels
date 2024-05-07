@@ -4,7 +4,6 @@ from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
-import torch
 
 from lmodels.protocols import Dataset, Logger
 from lmodels.utils import NullLogger
@@ -61,9 +60,6 @@ class Model(ABC):
 
         generate_batch_size: int = 64
         """The batch size for inference purposes."""
-
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
-        """The device which will be used to run the model."""
 
         calls_threshold: int | None = 100
         """
