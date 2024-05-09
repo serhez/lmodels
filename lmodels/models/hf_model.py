@@ -86,7 +86,7 @@ class HFModel(Model):
             device_map="auto",
         )
         self._tokenizer = AutoTokenizer.from_pretrained(
-            config.architecture, token=api_token
+            config.architecture, token=api_token, pad_token_id=model.config.eos_token_id
         )
         self._pipeline = pipeline(
             "text-generation",
