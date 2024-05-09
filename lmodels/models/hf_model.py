@@ -198,6 +198,10 @@ class HFModel(Model):
                 ]
             )
         else:
+            print(output)
+            if isinstance(output, list):
+                print(len(output))
+                print(output[0])
             raise ValueError(f"Unexpected output type: {type(output)}")
 
         stats = {

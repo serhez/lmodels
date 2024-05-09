@@ -179,15 +179,13 @@ class Model(ABC):
         """
 
         if isinstance(context, np.ndarray):
-            expected_n_calls = len(context)
+            expected_n_calls = len(context) * n_samples
         elif isinstance(context, list):
-            expected_n_calls = len(context)
+            expected_n_calls = len(context) * n_samples
         elif isinstance(context, Dataset):
-            expected_n_calls = len(context.test_set.inputs)
+            expected_n_calls = len(context.test_set.inputs) * n_samples
         else:
-            expected_n_calls = 1
-
-        expected_n_calls *= n_samples
+            expected_n_calls = n_samples
 
         if self._config.calls_threshold:
             assert (
