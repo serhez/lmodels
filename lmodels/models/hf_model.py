@@ -192,16 +192,24 @@ class HFModel(Model):
             response = np.array(
                 [
                     ""
-                    if sample is None or sample["generated_text"] is None
+                    if output is None
+                    or "generated_text" not in output
+                    or output["generated_text"] is None
+                    else output["generated_text"][len(input) :],
+                ]
+            )
+        elif isinstance(output, list):
+            response = np.array(
+                [
+                    ""
+                    if sample is None
+                    or "generated_text" not in sample
+                    or sample["generated_text"] is None
                     else sample["generated_text"][len(input) :]
                     for sample in output
                 ]
             )
         else:
-            print(output)
-            if isinstance(output, list):
-                print(len(output))
-                print(output[0])
             raise ValueError(f"Unexpected output type: {type(output)}")
 
         stats = {
