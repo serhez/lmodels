@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-import torch
 
 from lmodels.utils.types import DType
 
@@ -133,10 +132,33 @@ class HFModel(Model):
             return_text=True,
         )
 
-        response = np.empty((len(inputs), n_samples), dtype=np.str_)
-        for i, output in enumerate(outputs):
-            for j, sample in enumerate(output):
-                response[i, j] = sample["generated_text"][len(inputs[i]) :]
+        if outputs is None:
+            response = np.array([[""] * n_samples] * len(inputs))
+        elif isinstance(outputs, dict):
+            response = np.array(
+                [
+                    [
+                        ""
+                        if outputs is None
+                        or "generated_text" not in outputs
+                        or outputs["generated_text"] is None
+                        else outputs["generated_text"][len(input) :],
+                    ]
+                ]
+            )
+        elif isinstance(outputs, (list, np.ndarray)):
+            response = np.empty((len(inputs), n_samples), dtype=np.str_)
+            for i, output in enumerate(outputs):
+                if output is None:
+                    response[i, :] = ""
+                    continue
+                for j, sample in enumerate(output):
+                    if sample is None or sample["generated_text"] is None:
+                        response[i, j] = ""
+                    else:
+                        response[i, j] = sample["generated_text"][len(inputs[i]) :]
+        else:
+            raise ValueError(f"[HFModel] Unexpected batch output type: {type(outputs)}")
 
         stats = {
             "n_tokens_context": sum(
@@ -210,7 +232,7 @@ class HFModel(Model):
                 ]
             )
         else:
-            raise ValueError(f"Unexpected output type: {type(output)}")
+            raise ValueError(f"[HFModel] Unexpected output type: {type(output)}")
 
         stats = {
             "n_tokens_context": len(self._tokenizer.encode(input)),
