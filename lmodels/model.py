@@ -172,6 +172,9 @@ class Model(ABC):
 
         ### Raises
         -------
+        `Exception`: any exception raised by the model's internal implementation; consult the wrapped model's documentation for more information.
+        - This includes, e.g., errors for surpassing the context size, exceeding the credits available in your account for paid-for services, server errors, etc.
+        - You should handle these exceptions in your application.
         `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
         `ValueError`: if the input type is not supported.
         `ValueError`: if a message dictionary does not contain a `content` field.
