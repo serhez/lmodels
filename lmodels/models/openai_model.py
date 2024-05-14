@@ -65,27 +65,36 @@ class OpenAIModel(Model):
     class GenerationInfo(Model.GenerationInfo):
         """The generation information for the OpenAI model."""
 
-        finish_reasons: list[list[str]] = field(default_factory=lambda: list(list()))
-        """The reasons for finishing the generation, for each output and sample."""
+        finish_reasons: list[list[str | None]] = field(default_factory=lambda: list())
+        """
+        The reasons for finishing the generation, for each output and sample.
+        If the generation was not finished (e.g., an exception was thrown), the value is `None`.
+        - In such case, only a single `None` is appended to the inner list, hence the length of the inner list will not be equal to the number of requested samples.
+        """
 
         def __add__(
-            self, other: OpenAIModel.GenerationInfo
+            self, other: OpenAIModel.GenerationInfo | None
         ) -> OpenAIModel.GenerationInfo:
             return OpenAIModel.GenerationInfo(
-                usage=self.usage + other.usage,
-                finish_reasons=self.finish_reasons + other.finish_reasons,
+                usage=self.usage + other.usage if other is not None else self.usage,
+                finish_reasons=self.finish_reasons + other.finish_reasons
+                if other is not None
+                else self.finish_reasons + [[None]],
             )
 
         def __radd__(
-            self, other: OpenAIModel.GenerationInfo
+            self, other: OpenAIModel.GenerationInfo | None
         ) -> OpenAIModel.GenerationInfo:
             return self + other
 
         def __iadd__(
-            self, other: OpenAIModel.GenerationInfo
+            self, other: OpenAIModel.GenerationInfo | None
         ) -> OpenAIModel.GenerationInfo:
-            self.usage += other.usage
-            self.finish_reasons += other.finish_reasons
+            if other is not None:
+                self.usage += other.usage
+                self.finish_reasons += other.finish_reasons
+            else:
+                self.finish_reasons += [[None]]  # type: ignore[reportAttributeAccessIssue]
             return self
 
     @classproperty

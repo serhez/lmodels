@@ -15,24 +15,7 @@ class Usage:
     n_tokens_output: int = 0
     """The number of tokens in the output."""
 
-    @overload
-    def __add__(self, other: "Usage") -> "Usage":
-        """
-        Add two usage statistics together.
-
-        ### Parameters
-        --------------
-        `other`: the usage statistics to add.
-
-        ### Returns
-        -----------
-        The updated object.
-        """
-
-        ...
-
-    @overload
-    def __add__(self, other: dict[str, int]) -> "Usage":
+    def __add__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
         """
         Add two usage statistics together.
 
@@ -49,9 +32,6 @@ class Usage:
         The updated object.
         """
 
-        ...
-
-    def __add__(self, other) -> "Usage":
         if isinstance(other, dict):
             return Usage(
                 n_calls=self.n_calls + other.get("n_calls", 0),
@@ -61,29 +41,16 @@ class Usage:
             )
 
         return Usage(
-            n_calls=self.n_calls + other.n_calls,
-            n_tokens_context=self.n_tokens_context + other.n_tokens_context,
-            n_tokens_output=self.n_tokens_output + other.n_tokens_output,
+            n_calls=self.n_calls + other.n_calls if other is not None else self.n_calls,
+            n_tokens_context=self.n_tokens_context + other.n_tokens_context
+            if other is not None
+            else self.n_tokens_context,
+            n_tokens_output=self.n_tokens_output + other.n_tokens_output
+            if other is not None
+            else self.n_tokens_output,
         )
 
-    @overload
-    def __radd__(self, other: "Usage") -> "Usage":
-        """
-        Add two usage statistics together.
-
-        ### Parameters
-        --------------
-        `other`: the usage statistics to add.
-
-        ### Returns
-        -----------
-        The updated object.
-        """
-
-        ...
-
-    @overload
-    def __radd__(self, other: dict[str, int]) -> "Usage":
+    def __radd__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
         """
         Add two usage statistics together.
 
@@ -100,29 +67,9 @@ class Usage:
         The updated object.
         """
 
-        ...
-
-    def __radd__(self, other) -> "Usage":
         return self + other
 
-    @overload
-    def __iadd__(self, other: "Usage") -> "Usage":
-        """
-        Add two usage statistics together in place.
-
-        ### Parameters
-        --------------
-        `usage`: the usage statistics to add.
-
-        ### Returns
-        -----------
-        The updated object.
-        """
-
-        ...
-
-    @overload
-    def __iadd__(self, other: dict[str, int]) -> "Usage":
+    def __iadd__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
         """
         Add two usage statistics together in place.
 
@@ -141,14 +88,11 @@ class Usage:
             - `n_tokens_output`: the number of tokens in the output to add.
         """
 
-        ...
-
-    def __iadd__(self, other) -> "Usage":
         if isinstance(other, dict):
             self.n_calls += other.get("n_calls", 0)
             self.n_tokens_context += other.get("n_tokens_context", 0)
             self.n_tokens_output += other.get("n_tokens_output", 0)
-        else:
+        elif other is not None:
             self.n_calls += other.n_calls
             self.n_tokens_context += other.n_tokens_context
             self.n_tokens_output += other.n_tokens_output

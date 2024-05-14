@@ -77,7 +77,7 @@ class Model(ABC):
         usage: Usage = field(default_factory=Usage)
         """The usage statistics of the model."""
 
-        def __add__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+        def __add__(self, other: Model.GenerationInfo | None) -> Model.GenerationInfo:
             """
             Combines the generation information of two models.
 
@@ -90,9 +90,11 @@ class Model(ABC):
             The combined generation information.
             """
 
-            return Model.GenerationInfo(usage=self.usage + other.usage)
+            return Model.GenerationInfo(
+                usage=self.usage + other.usage if other is not None else self.usage
+            )
 
-        def __radd__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+        def __radd__(self, other: Model.GenerationInfo | None) -> Model.GenerationInfo:
             """
             Combines the generation information of two models.
 
@@ -107,7 +109,7 @@ class Model(ABC):
 
             return self + other
 
-        def __iadd__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+        def __iadd__(self, other: Model.GenerationInfo | None) -> Model.GenerationInfo:
             """
             Combines the generation information of two models in-place.
 
@@ -120,7 +122,9 @@ class Model(ABC):
             The combined generation information.
             """
 
-            self.usage += other.usage
+            if other is not None:
+                self.usage += other.usage
+
             return self
 
     @classproperty
