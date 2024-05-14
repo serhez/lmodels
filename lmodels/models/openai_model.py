@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
-from typing import Any
 
 import httpx
 import numpy as np
@@ -14,6 +15,7 @@ except ImportError:
 
 from lmodels.model import AnnotatedConversation, Model
 from lmodels.protocols import Logger
+from lmodels.utils import Usage, classproperty
 
 
 class OpenAIModel(Model):
@@ -59,18 +61,44 @@ class OpenAIModel(Model):
         The keys are the patterns to be identified in the `URL.path`, and the values are the whole new `URL.path` to be used instead.
         """
 
-    @property
-    def config_cls(self) -> type[Config]:
-        return OpenAIModel.Config
+    @dataclass(kw_only=True)
+    class GenerationInfo(Model.GenerationInfo):
+        """The generation information for the OpenAI model."""
+
+        finish_reasons: list[list[str]] = field(default_factory=lambda: list(list()))
+        """The reasons for finishing the generation, for each output and sample."""
+
+        def __add__(
+            self, other: OpenAIModel.GenerationInfo
+        ) -> OpenAIModel.GenerationInfo:
+            return OpenAIModel.GenerationInfo(
+                usage=self.usage + other.usage,
+                finish_reasons=self.finish_reasons + other.finish_reasons,
+            )
+
+        def __iadd__(
+            self, other: OpenAIModel.GenerationInfo
+        ) -> OpenAIModel.GenerationInfo:
+            self.usage += other.usage
+            self.finish_reasons += other.finish_reasons
+            return self
+
+    @classproperty
+    def config_cls(cls) -> type[Config]:
+        return cls.Config
+
+    @classproperty
+    def generation_info_cls(cls) -> type[OpenAIModel.GenerationInfo]:
+        return cls.GenerationInfo
 
     def __init__(self, config: Config, logger: Logger | None = None):
         """
         Initializes the OpenAI model.
         Your API key should be stored in the environment variable `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY` (for Azure API).
         If you are using the Azure API, you must also set the `AZURE_OPENAI_ENDPOINT` and `OPENAI_API_VERSION` environment variables.
-        Other environment variables that can optionally be set are:
-        - `OPENAI_ORG_ID`
-        - `AZURE_OPENAI_AD_TOKEN`
+        Other environment variables that can be set are:
+        - `OPENAI_ORG_ID`.
+        - `AZURE_OPENAI_AD_TOKEN`.
 
         ### Parameters
         ----------
@@ -123,7 +151,7 @@ class OpenAIModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -140,17 +168,21 @@ class OpenAIModel(Model):
             top_p=self._config.top_p,
         )
 
-        stats = {
-            "n_tokens_context": output.usage.prompt_tokens
-            if output.usage is not None
-            else 0,
-            "n_tokens_output": output.usage.completion_tokens
-            if output.usage is not None
-            else 0,
-            "finish_reasons": [c.finish_reason for c in output.choices],
-            "n_calls": 1,
-        }
-        self._record_model_usage(stats)
+        info = OpenAIModel.GenerationInfo(
+            usage=Usage(
+                n_calls=1,
+                n_tokens_context=output.usage.prompt_tokens
+                if output.usage is not None
+                else 0,
+                n_tokens_output=output.usage.completion_tokens
+                if output.usage is not None
+                else 0,
+            ),
+            finish_reasons=[[c.finish_reason for c in output.choices]]
+            if output.choices is not None
+            else [[]],
+        )
+        self.usage += info.usage
 
         for c in output.choices:
             if c.message.content is None:
@@ -170,7 +202,7 @@ class OpenAIModel(Model):
             ]
         )
 
-        return output, stats
+        return output, info
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the OpenAI model.")

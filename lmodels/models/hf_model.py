@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-from lmodels.utils.types import DType
+from lmodels.utils import DType, Usage, classproperty
 
 try:
     from transformers import (
@@ -56,9 +57,13 @@ class HFModel(Model):
         attention_type: str = "flash_attention_2"
         """The implementation of the attention mechanism to use."""
 
-    @property
-    def config_cls(self) -> type[Config]:
-        return HFModel.Config
+    @classproperty
+    def config_cls(cls) -> type[Config]:
+        return cls.Config
+
+    @classproperty
+    def generation_info_cls(cls) -> type[Model.GenerationInfo]:
+        return cls.GenerationInfo
 
     def __init__(self, config: Config, logger: Logger | None = None):
         """
@@ -106,7 +111,7 @@ class HFModel(Model):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
             return self._generate_single(context[0], n_samples, max_tokens)
@@ -160,17 +165,19 @@ class HFModel(Model):
         else:
             raise ValueError(f"[HFModel] Unexpected batch output type: {type(outputs)}")
 
-        stats = {
-            "n_tokens_context": sum(
-                [len(self._tokenizer.encode(input)) for input in inputs]
-            ),
-            "n_tokens_output": sum(
-                sum([len(self._tokenizer.encode(o)) for o in output])
-                for output in response
-            ),
-            "n_calls": len(inputs),
-        }
-        self._record_model_usage(stats)
+        info = Model.GenerationInfo(
+            usage=Usage(
+                n_calls=len(inputs) * n_samples,
+                n_tokens_context=sum(
+                    [len(self._tokenizer.encode(input)) for input in inputs]
+                ),
+                n_tokens_output=sum(
+                    sum([len(self._tokenizer.encode(o)) for o in output])
+                    for output in response
+                ),
+            )
+        )
+        self.usage += info.usage
 
         self._logger.debug(
             {
@@ -180,18 +187,18 @@ class HFModel(Model):
                 "Batch output": response,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
-                "Usage stats.": stats,
+                "Info": info,
             }
         )
 
-        return response, stats
+        return response, info
 
     def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -234,14 +241,16 @@ class HFModel(Model):
         else:
             raise ValueError(f"[HFModel] Unexpected output type: {type(output)}")
 
-        stats = {
-            "n_tokens_context": len(self._tokenizer.encode(input)),
-            "n_tokens_output": sum([len(self._tokenizer.encode(o)) for o in response]),
-            "n_calls": n_samples,
-        }
-        self._record_model_usage(stats)
+        info = Model.GenerationInfo(
+            usage=Usage(
+                n_calls=n_samples,
+                n_tokens_context=len(self._tokenizer.encode(input)),
+                n_tokens_output=sum([len(self._tokenizer.encode(o)) for o in response]),
+            )
+        )
+        self.usage += info.usage
 
-        return response, stats
+        return response, info
 
     def fine_tune(self, _):
         raise NotImplementedError(

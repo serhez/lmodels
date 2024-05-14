@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
 
 from lmodels.protocols import Dataset, Logger
-from lmodels.utils import NullLogger
+from lmodels.utils import NullLogger, Usage, classproperty
 
 Message = str
 """A single simple message."""
@@ -68,10 +70,55 @@ class Model(ABC):
         It can be set to `None` to disable the safeguard.
         """
 
-    @property
+    @dataclass(kw_only=True)
+    class GenerationInfo:
+        """Extra information about the generation process of the model."""
+
+        usage: Usage = field(default_factory=Usage)
+        """The usage statistics of the model."""
+
+        def __add__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+            """
+            Combines the generation information of two models.
+
+            ### Parameters
+            ----------
+            `other`: the other generation information to combine with.
+
+            ### Returns
+            ----------
+            The combined generation information.
+            """
+
+            return Model.GenerationInfo(usage=self.usage + other.usage)
+
+        def __iadd__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+            """
+            Combines the generation information of two models in-place.
+
+            ### Parameters
+            ----------
+            `other`: the other generation information to combine with.
+
+            ### Returns
+            ----------
+            The combined generation information.
+            """
+
+            self.usage += other.usage
+            return self
+
+    @classproperty
     @abstractmethod
-    def config_cls(self) -> type[Config]:
+    def config_cls(cls) -> type[Config]:
         """The configuration class of the model."""
+
+        ...
+
+    @classproperty
+    @abstractmethod
+    def generation_info_cls(cls) -> type[GenerationInfo]:
+        """The generation information class of the model."""
 
         ...
 
@@ -90,11 +137,7 @@ class Model(ABC):
             self._logger = NullLogger()
         else:
             self._logger = logger
-        self._stats = {
-            "n_tokens_context": 0,
-            "n_tokens_output": 0,
-            "n_calls": 0,
-        }
+        self._usage = Usage()
 
         self._logger.debug(
             {f"[{self.__class__.__name__}.config]": asdict(self._config)}
@@ -112,23 +155,16 @@ class Model(ABC):
         ...
 
     @property
-    def usage(self) -> dict[str, Any]:
-        """
-        The usage statistics of the model, containing:
-        - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
-        - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
-        - `n_calls`: the number of calls to the model's forward pass.
-        """
+    def usage(self) -> Usage:
+        """The aggregated usage statistics of the model instance, accounting for all generations."""
 
-        return self._stats
+        return self._usage
 
-    def _record_model_usage(self, stats: dict[str, Any]):
-        if "n_tokens_context" in stats:
-            self._stats["n_tokens_context"] += stats["n_tokens_context"]
-        if "n_tokens_output" in stats:
-            self._stats["n_tokens_output"] += stats["n_tokens_output"]
-        if "n_calls" in stats:
-            self._stats["n_calls"] += stats["n_calls"]
+    @usage.setter
+    def usage(self, value: Usage):
+        """Sets the usage statistics of the model instance."""
+
+        self._usage = value
 
     # TODO: return logprobs too
     def generate(
@@ -137,7 +173,7 @@ class Model(ABC):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         Generates the next given number of tokens in the sequence.
         This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
@@ -165,10 +201,7 @@ class Model(ABC):
         A tuple containing:
         - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
             - If `context` is a single string/dictionary, then `len(context)` is 1.
-        - A dictionary with usage statistics including (but not limited to, depending on the model):
-            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
-            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
-            - `n_calls`: the number of calls to the model's forward pass.
+        - Extra information about the generation process of the model.
 
         ### Raises
         -------
@@ -192,7 +225,7 @@ class Model(ABC):
 
         if self._config.calls_threshold:
             assert (
-                self.usage["n_calls"] + expected_n_calls <= self._config.calls_threshold
+                self.usage.n_calls + expected_n_calls <= self._config.calls_threshold
             ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
 
         return self._generate_batch(
@@ -273,7 +306,7 @@ class Model(ABC):
             )
             and all(
                 isinstance(context[i][j], str)  # type: ignore[reportArgumentType]
-                for i, j in np.ndindex(np.array(context).shape)
+                for i, j in np.ndindex((len(context), len(context[0])))
             )
         ):
             return [  # type: ignore[reportReturnType]
@@ -294,7 +327,7 @@ class Model(ABC):
             )
             and all(
                 isinstance(context[i][j], dict)  # type: ignore[reportArgumentType]
-                for i, j in np.ndindex(np.array(context).shape)
+                for i, j in np.ndindex((len(context), len(context[0])))
             )
         ):
             if not unsafe:
@@ -318,7 +351,7 @@ class Model(ABC):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         Internal method for generating samples in batches.
         This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
@@ -335,10 +368,7 @@ class Model(ABC):
         A tuple containing:
         - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
             - If `context` is a single string/dictionary, then `len(context)` is 1.
-        - A dictionary with usage statistics including (but not limited to, depending on the model):
-            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
-            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
-            - `n_calls`: the number of calls to the model's forward pass.
+        - Extra information about the generation process of the model.
 
         ### Raises
         -------
@@ -353,26 +383,17 @@ class Model(ABC):
             f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
         )
 
-        outputs, ind_stats = zip(
+        outputs, ind_info = zip(
             *[
                 self._generate_single(input, n_samples=n_samples, max_tokens=max_tokens)
                 for input in context
             ]
         )
         outputs = np.array(list(outputs))
-        ind_stats = list(ind_stats)
+        ind_info = list(ind_info)
 
         # Common usage statistics
-        agg_stats: dict[str, Any] = {
-            "n_tokens_context": sum([stats["n_tokens_context"] for stats in ind_stats]),
-            "n_tokens_output": sum([stats["n_tokens_output"] for stats in ind_stats]),
-            "n_calls": sum([stats["n_calls"] for stats in ind_stats]),
-        }
-
-        # Model-specific usage statistics
-        for key in ind_stats[0]:
-            if key not in agg_stats:
-                agg_stats[key] = [stats[key] for stats in ind_stats]
+        agg_info = sum(ind_info, start=self.generation_info_cls())  # type: ignore[reportCallIssue, reportArgumentType]
 
         self._logger.debug(
             {
@@ -381,11 +402,11 @@ class Model(ABC):
                 "Outputs": outputs,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
-                "Usage stats.": agg_stats,
+                "Info": agg_info,
             }
         )
 
-        return outputs, agg_stats
+        return outputs, agg_info
 
     def _call_impl(self, *args, **kwargs):
         return self.generate(*args, **kwargs)
@@ -398,7 +419,7 @@ class Model(ABC):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
 
@@ -414,10 +435,7 @@ class Model(ABC):
         -------
         A tuple containing:
         - A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
-        - A dictionary with usage statistics including (but not limited to, depending on the model):
-            - `n_tokens_context`: the sum of the number of tokens which each sample's context has.
-            - `n_tokens_output`: the sum of the number of tokens which each sample has generated.
-            - `n_calls`: the number of calls to the model's forward pass.
+        - Extra information about the generation process of the model.
         """
 
         ...

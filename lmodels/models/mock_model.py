@@ -1,7 +1,6 @@
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -10,6 +9,7 @@ import transformers
 
 from lmodels.model import AnnotatedConversation, Model
 from lmodels.protocols import Logger
+from lmodels.utils import Usage, classproperty
 
 
 @dataclass(kw_only=True)
@@ -98,9 +98,13 @@ class MockModel(Model):
                         "The responses must be a MockResponseCollection or a dictionary with the keys 'matching' and 'default'."
                     ) from e
 
-    @property
-    def config_cls(self) -> type[Config]:
-        return MockModel.Config
+    @classproperty
+    def config_cls(cls) -> type[Config]:
+        return cls.Config
+
+    @classproperty
+    def generation_info_cls(cls) -> type[Model.GenerationInfo]:
+        return cls.GenerationInfo
 
     _WORDS_CACHE_PATH = "mock_model_cached_words.txt"
     _WORDS_URL = "https://www.mit.edu/~ecprice/wordlist.10000"
@@ -159,7 +163,7 @@ class MockModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-    ) -> tuple[npt.NDArray[np.str_], dict[str, Any]]:
+    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         if max_tokens is None:
             max_tokens = self._config.default_max_tokens
 
@@ -204,14 +208,16 @@ class MockModel(Model):
                 ]
             )
 
-        stats = {
-            "n_tokens_context": sum([len(m["content"].split()) for m in context]),
-            "n_tokens_output": sum([len(o.split()) for o in output]),
-            "n_calls": n_samples,
-        }
-        self._record_model_usage(stats)
+        info = Model.GenerationInfo(
+            usage=Usage(
+                n_calls=n_samples,
+                n_tokens_context=sum([len(m["content"].split()) for m in context]),
+                n_tokens_output=sum([len(o.split()) for o in output]),
+            )
+        )
+        self.usage += info.usage
 
-        return output, stats
+        return output, info
 
     def fine_tune(self, _):
         raise NotImplementedError("Fine-tuning is not supported for the mock model.")
