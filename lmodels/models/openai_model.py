@@ -76,6 +76,11 @@ class OpenAIModel(Model):
                 finish_reasons=self.finish_reasons + other.finish_reasons,
             )
 
+        def __radd__(
+            self, other: OpenAIModel.GenerationInfo
+        ) -> OpenAIModel.GenerationInfo:
+            return self + other
+
         def __iadd__(
             self, other: OpenAIModel.GenerationInfo
         ) -> OpenAIModel.GenerationInfo:

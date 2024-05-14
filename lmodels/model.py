@@ -92,6 +92,21 @@ class Model(ABC):
 
             return Model.GenerationInfo(usage=self.usage + other.usage)
 
+        def __radd__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
+            """
+            Combines the generation information of two models.
+
+            ### Parameters
+            ----------
+            `other`: the other generation information to combine with.
+
+            ### Returns
+            ----------
+            The combined generation information.
+            """
+
+            return self + other
+
         def __iadd__(self, other: Model.GenerationInfo) -> Model.GenerationInfo:
             """
             Combines the generation information of two models in-place.

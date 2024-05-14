@@ -67,6 +67,45 @@ class Usage:
         )
 
     @overload
+    def __radd__(self, other: "Usage") -> "Usage":
+        """
+        Add two usage statistics together.
+
+        ### Parameters
+        --------------
+        `other`: the usage statistics to add.
+
+        ### Returns
+        -----------
+        The updated object.
+        """
+
+        ...
+
+    @overload
+    def __radd__(self, other: dict[str, int]) -> "Usage":
+        """
+        Add two usage statistics together.
+
+        ### Parameters
+        --------------
+        `other`: the usage statistics to add.
+        - If the usage is a dictionary and a key is missing, it is assumed to be 0; the required keys are:
+            - `n_calls`: the number of calls to add.
+            - `n_tokens_context`: the number of tokens in the context to add.
+            - `n_tokens_output`: the number of tokens in the output to add.
+
+        ### Returns
+        -----------
+        The updated object.
+        """
+
+        ...
+
+    def __radd__(self, other) -> "Usage":
+        return self + other
+
+    @overload
     def __iadd__(self, other: "Usage") -> "Usage":
         """
         Add two usage statistics together in place.
