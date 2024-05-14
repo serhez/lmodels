@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import overload
 
 
 @dataclass(kw_only=True)
