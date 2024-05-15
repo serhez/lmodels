@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 
@@ -14,7 +16,7 @@ class Usage:
     n_tokens_output: int = 0
     """The number of tokens in the output."""
 
-    def __add__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
+    def __add__(self, other: Usage | dict[str, int] | None) -> Usage:
         """
         Add two usage statistics together.
 
@@ -49,7 +51,7 @@ class Usage:
             else self.n_tokens_output,
         )
 
-    def __radd__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
+    def __radd__(self, other: Usage | dict[str, int] | None) -> Usage:
         """
         Add two usage statistics together.
 
@@ -68,7 +70,7 @@ class Usage:
 
         return self + other
 
-    def __iadd__(self, other: "Usage" | dict[str, int] | None) -> "Usage":
+    def __iadd__(self, other: Usage | dict[str, int] | None) -> Usage:
         """
         Add two usage statistics together in place.
 
@@ -98,7 +100,7 @@ class Usage:
 
         return self
 
-    def reset(self) -> "Usage":
+    def reset(self) -> Usage:
         """
         Reset the usage statistics.
 
@@ -113,7 +115,7 @@ class Usage:
 
         return self
 
-    def add_call(self, n_tokens_context: int, n_tokens_output: int) -> "Usage":
+    def add_call(self, n_tokens_context: int, n_tokens_output: int) -> Usage:
         """
         Add a call to the usage statistics.
 
@@ -133,7 +135,7 @@ class Usage:
 
         return self
 
-    def add(self, n_calls: int, n_tokens_context: int, n_tokens_output: int) -> "Usage":
+    def add(self, n_calls: int, n_tokens_context: int, n_tokens_output: int) -> Usage:
         """
         Add usage statistics to the current statistics.
 
