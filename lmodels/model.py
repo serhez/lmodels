@@ -127,6 +127,19 @@ class Model(ABC):
 
             return self
 
+        def to_json(self) -> dict[str, Any]:
+            """
+            Converts the generation information to a JSON-serializable dictionary.
+
+            ### Returns
+            ----------
+            The JSON-serializable dictionary.
+            """
+
+            return {
+                "usage": self.usage.to_json(),
+            }
+
     @classproperty
     @abstractmethod
     def config_cls(cls) -> type[Config]:

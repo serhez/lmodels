@@ -155,3 +155,18 @@ class Usage:
         self.n_tokens_output += n_tokens_output
 
         return self
+
+    def to_json(self) -> dict[str, int]:
+        """
+        Convert the usage statistics to a JSON serializable object.
+
+        ### Returns
+        -----------
+        The JSON serializable object.
+        """
+
+        return {
+            "n_calls": self.n_calls,
+            "n_tokens_context": self.n_tokens_context,
+            "n_tokens_output": self.n_tokens_output,
+        }
