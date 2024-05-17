@@ -44,23 +44,23 @@ class OpenAIModel(Model):
         use_azure: bool = False
         """Whether to use the Azure OpenAI API instead of the regular one."""
 
-        architecture: str
-        """
-        The name of the model architecture to use.
-        Must be listed as an OpenAI model architecture.
-        """
-
-        temperature: float = 1.0
-        """The temperature for sampling from the model."""
-
-        top_p: float = 1.0
-        """The cumulative probability for nucleus sampling."""
-
         url_replacements: dict[str, str] = field(default_factory=lambda: dict())
         """
         A dictionary of URL replacements to be made for the Azure API url.
         The keys are the patterns to be identified in the `URL.path`, and the values are the whole new `URL.path` to be used instead.
         """
+
+        architecture: str
+        """
+        The default name of the model architecture to use.
+        Must be listed as an OpenAI model architecture.
+        """
+
+        temperature: float = 1.0
+        """The default temperature for sampling from the model."""
+
+        top_p: float = 1.0
+        """The default cumulative probability for nucleus sampling."""
 
     @dataclass(kw_only=True)
     class GenerationInfo(Model.GenerationInfo):
@@ -175,14 +175,113 @@ class OpenAIModel(Model):
             "The OpenAI model does not currently provide a tokenizer."
         )
 
+    def generate(
+        self,
+        context: AnnotatedConversation,
+        n_samples: int = 1,
+        max_tokens: int | None = None,
+        unsafe: bool = False,
+        architecture: str | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
+        """
+        Generates the next tokens in the sequence given the context.
+
+        ### Definitions
+        ----------
+        - A single independent message is the smallest unit of input.
+            - Represented by a single string or dictionary.
+            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
+            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
+        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
+            - Represented by a list of strings/dictionaries.
+        - Multiple messages/conversations yield multiple outputs.
+            - Represented by a list of lists of strings/dictionaries.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+        - If `None`, the default number of samples specified in the model's configuration is used.
+        `unsafe`: whether to bypass expensive input validations.
+        `architecture`: the name of the model architecture to use.
+        - If `None`, the default architecture specified in the model's configuration is used.
+        `temperature`: the temperature for sampling from the model.
+        - If `None`, the default temperature specified in the model's configuration is used.
+        `top_p`: the cumulative probability for nucleus sampling.
+        - If `None`, the default cumulative probability specified in the model's configuration is used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - Extra information about the generation process of the model.
+
+        ### Raises
+        -------
+        `Exception`: any exception raised by the model's internal implementation; consult the wrapped model's documentation for more information.
+        - This includes, e.g., errors for surpassing the context size, exceeding the credits available in your account for paid-for services, server errors, etc.
+        - You should handle these exceptions in your application.
+        `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        return super().generate(  # type: ignore[reportReturnType]
+            context,
+            n_samples,
+            max_tokens,
+            unsafe,
+            architecture=architecture,
+            temperature=temperature,
+            top_p=top_p,
+        )
+
     def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        architecture: str | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
+        """
+        The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        - Each message (dictionary) must contain the `content` field.
+        `n_samples`: the number of samples to generate for the context string.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, `config.max_tokens` will be used.
+        `architecture`: the name of the model architecture to use.
+        - If `None`, `config.architecture` will be used.
+        `temperature`: the temperature for sampling from the model.
+        - If `None`, `config.temperature` will be used.
+        `top_p`: the cumulative probability for nucleus sampling.
+        - If `None`, `config.top_p` will be used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
+        - Extra information about the generation process of the model.
+        """
+
         if max_tokens is None:
-            max_tokens = self._config.default_max_tokens
+            max_tokens = self._config.max_tokens
+        if architecture is None:
+            architecture = self._config.architecture
+        if temperature is None:
+            temperature = self._config.temperature
+        if top_p is None:
+            top_p = self._config.top_p
 
         for message in context:
             if "role" not in message:

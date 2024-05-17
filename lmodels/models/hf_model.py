@@ -37,15 +37,6 @@ class HFModel(Model):
         name: str = "HFModel"
         """The name of the model."""
 
-        architecture: str
-        """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
-
-        do_sample: bool = True
-        """Whether to sample from the model's output."""
-
-        top_k: int = 10
-        """The number of top tokens to consider when sampling."""
-
         dtype: DType = DType.bfloat16
         """
         The data type to use for the model's weights.
@@ -56,6 +47,15 @@ class HFModel(Model):
 
         attention_type: str = "flash_attention_2"
         """The implementation of the attention mechanism to use."""
+
+        architecture: str
+        """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
+
+        do_sample: bool = True
+        """The default value of whether to sample from the model's output."""
+
+        top_k: int = 10
+        """The default number of top tokens to consider when sampling."""
 
     @classproperty
     def config_cls(cls) -> type[Config]:
@@ -105,13 +105,106 @@ class HFModel(Model):
     def tokenizer(self) -> PreTrainedTokenizer:
         return self._tokenizer
 
+    def generate(
+        self,
+        context: AnnotatedConversation,
+        n_samples: int = 1,
+        max_tokens: int | None = None,
+        unsafe: bool = False,
+        do_sample: str | None = None,
+        top_k: float | None = None,
+    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+        """
+        Generates the next tokens in the sequence given the context.
+
+        ### Definitions
+        ----------
+        - A single independent message is the smallest unit of input.
+            - Represented by a single string or dictionary.
+            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
+            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
+        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
+            - Represented by a list of strings/dictionaries.
+        - Multiple messages/conversations yield multiple outputs.
+            - Represented by a list of lists of strings/dictionaries.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+        - If `None`, the default number of samples specified in the model's configuration is used.
+        `unsafe`: whether to bypass expensive input validations.
+        `do_sample`: whether to sample from the model's output.
+        - If `None`, the default value specified in the model's configuration is used.
+        `top_k`: the number of top tokens to consider when sampling.
+        - If `None`, the default value specified in the model's configuration is used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - Extra information about the generation process of the model.
+
+        ### Raises
+        -------
+        `Exception`: any exception raised by the model's internal implementation; consult the wrapped model's documentation for more information.
+        - This includes, e.g., errors for surpassing the context size, exceeding the credits available in your account for paid-for services, server errors, etc.
+        - You should handle these exceptions in your application.
+        `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        return super().generate(
+            context,
+            n_samples,
+            max_tokens,
+            unsafe,
+            do_sample=do_sample,
+            top_k=top_k,
+        )
+
     def _generate_batch(
         self,
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
+        do_sample: bool | None = None,
+        top_k: int | None = None,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+        """
+        Internal method for generating samples in batches.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+        - If `None`, the default number of samples specified in the model's configuration is used.
+        `unsafe`: whether to bypass expensive input validations.
+        `do_sample`: whether to sample from the model's output.
+        - If `None`, the default value specified in the model's configuration is used.
+        `top_k`: the number of top tokens to consider when sampling.
+        - If `None`, the default value specified in the model's configuration is used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - Extra information about the generation process of the model.
+
+        ### Raises
+        -------
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
             return self._generate_single(context[0], n_samples, max_tokens)
@@ -124,7 +217,11 @@ class HFModel(Model):
             inputs.append(input)
 
         if max_tokens is None:
-            max_tokens = self._config.default_max_tokens
+            max_tokens = self._config.max_tokens
+        if do_sample is None:
+            do_sample = self._config.do_sample
+        if top_k is None:
+            top_k = self._config.top_k
 
         outputs = self._pipeline(
             inputs,
@@ -198,9 +295,37 @@ class HFModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        do_sample: bool | None = None,
+        top_k: int | None = None,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+        """
+        The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        - Each message (dictionary) must contain the `content` field.
+        `n_samples`: the number of samples to generate for the context string.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, `config.max_tokens` will be used.
+        `do_sample`: whether to sample from the model's output.
+        - If `None`, `config.do_sample` will be used.
+        `top_k`: the number of top tokens to consider when sampling.
+        - If `None`, `config.top_k` will be used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` with the generated tokens for each sample of shape (`n_samples`).
+        - Extra information about the generation process of the model.
+        """
+
         if max_tokens is None:
-            max_tokens = self._config.default_max_tokens
+            max_tokens = self._config.max_tokens
+        if do_sample is None:
+            do_sample = self._config.do_sample
+        if top_k is None:
+            top_k = self._config.top_k
 
         input = context[0]["content"]
         for i in range(1, len(context)):
@@ -208,8 +333,8 @@ class HFModel(Model):
 
         output = self._pipeline(
             input,
-            do_sample=self._config.do_sample,
-            top_k=self._config.top_k,
+            do_sample=do_sample,
+            top_k=top_k,
             num_return_sequences=n_samples,
             eos_token_id=self._tokenizer.eos_token_id,
             max_new_tokens=max_tokens,

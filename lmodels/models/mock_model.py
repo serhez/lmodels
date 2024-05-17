@@ -19,8 +19,8 @@ class MockResponse:
 
     outputs: list[tuple[str, float]]
     """
-    A list of possible tuples (output, prob).
-    The probs must add up to 1.0.
+    A list of possible tuples (output, probability).
+    The probabilities must add up to 1.0.
     """
 
     def __post_init__(self):
@@ -165,7 +165,7 @@ class MockModel(Model):
         max_tokens: int | None = None,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         if max_tokens is None:
-            max_tokens = self._config.default_max_tokens
+            max_tokens = self._config.max_tokens
 
         input = "\n".join([message["content"] for message in context])
         output = None

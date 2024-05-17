@@ -54,7 +54,7 @@ class Model(ABC):
         name: str
         """The name of the model."""
 
-        default_max_tokens: int = 100
+        max_tokens: int = 100
         """The default value for the maximum number of tokens to generate per context string."""
 
         train_batch_size: int = 64
@@ -205,10 +205,10 @@ class Model(ABC):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
+        **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
-        Generates the next given number of tokens in the sequence.
-        This method can be overriden by the child class to take advantage of GPU parallelization for multi-context inputs.
+        Generates the next tokens in the sequence given the context.
 
         ### Definitions
         ----------
@@ -261,7 +261,7 @@ class Model(ABC):
             ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
 
         return self._generate_batch(
-            context, n_samples=n_samples, max_tokens=max_tokens, unsafe=unsafe
+            context, n_samples=n_samples, max_tokens=max_tokens, unsafe=unsafe, **kwargs
         )
 
     def _parse_context(
@@ -383,6 +383,7 @@ class Model(ABC):
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
+        **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         Internal method for generating samples in batches.
@@ -394,6 +395,7 @@ class Model(ABC):
         `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
         `unsafe`: whether to bypass expensive input validations.
+        Other keyword arguments can be passed to the model's generation method, given the specific model.
 
         ### Returns
         -------
@@ -417,7 +419,9 @@ class Model(ABC):
 
         outputs, ind_info = zip(
             *[
-                self._generate_single(input, n_samples=n_samples, max_tokens=max_tokens)
+                self._generate_single(
+                    input, n_samples=n_samples, max_tokens=max_tokens, **kwargs
+                )
                 for input in context
             ]
         )
@@ -451,6 +455,7 @@ class Model(ABC):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
@@ -461,7 +466,8 @@ class Model(ABC):
         - Each message (dictionary) must contain the `content` field.
         `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
-        - If `None`, `config.default_max_tokens` will be used.
+        - If `None`, `config.max_tokens` will be used.
+        Other keyword arguments can be passed to the model's generation method, given the specific model.
 
         ### Returns
         -------
