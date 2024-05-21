@@ -107,7 +107,7 @@ class HFModel(Model):
 
     def generate(
         self,
-        context: AnnotatedConversation,
+        context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
         unsafe: bool = False,
