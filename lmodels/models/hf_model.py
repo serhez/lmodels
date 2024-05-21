@@ -90,7 +90,7 @@ class HFModel(Model):
             device_map="auto",
         )
         self._tokenizer = AutoTokenizer.from_pretrained(
-            config.architecture, token=api_token, pad_token_id=model.config.eos_token_id
+            config.architecture, token=api_token
         )
         self._pipeline = pipeline(
             "text-generation",
@@ -100,6 +100,7 @@ class HFModel(Model):
             torch_dtype=config.dtype.torch,
             device_map="auto",
         )
+        self._pipeline.tokenizer.pad_token_id = model.config.eos_token_id  # type: ignore[reportOptionalMemberAccess]
 
     @property
     def tokenizer(self) -> PreTrainedTokenizer:
