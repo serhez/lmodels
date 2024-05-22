@@ -90,7 +90,7 @@ class HFModel(Model):
             device_map="auto",
         )
         self._tokenizer = AutoTokenizer.from_pretrained(
-            config.architecture, token=api_token
+            config.architecture, token=api_token, padding_side="left"
         )
         self._pipeline = pipeline(
             "text-generation",
@@ -208,7 +208,9 @@ class HFModel(Model):
 
         context = self._parse_context(context, unsafe=unsafe)
         if len(context) == 1:
-            return self._generate_single(context[0], n_samples, max_tokens)
+            return self._generate_single(
+                context[0], n_samples, max_tokens, do_sample, top_k
+            )
 
         inputs = []
         for conversation in context:
@@ -237,6 +239,7 @@ class HFModel(Model):
 
         if outputs is None:
             response = np.array([[""] * n_samples] * len(inputs))
+            self._logger.warn("[HFModel] The output of the model was `None`.")
         elif isinstance(outputs, dict):
             response = np.array(
                 [
@@ -270,8 +273,10 @@ class HFModel(Model):
                     [len(self._tokenizer.encode(input)) for input in inputs]
                 ),
                 n_tokens_output=sum(
-                    sum([len(self._tokenizer.encode(o)) for o in output])
-                    for output in response
+                    [
+                        sum([len(self._tokenizer.encode(sample)) for sample in output])
+                        for output in response
+                    ]
                 ),
             )
         )
@@ -285,6 +290,8 @@ class HFModel(Model):
                 "Batch output": response,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
+                "Do sample": do_sample,
+                "Top k": top_k,
                 "Info": info,
             }
         )
@@ -343,6 +350,7 @@ class HFModel(Model):
         )
         if output is None:
             response = np.array([""] * n_samples)
+            self._logger.warn("[HFModel] The output of the model was `None`.")
         elif isinstance(output, dict):
             response = np.array(
                 [
@@ -371,10 +379,26 @@ class HFModel(Model):
             usage=Usage(
                 n_calls=n_samples,
                 n_tokens_context=len(self._tokenizer.encode(input)),
-                n_tokens_output=sum([len(self._tokenizer.encode(o)) for o in response]),
+                n_tokens_output=sum(
+                    [len(self._tokenizer.encode(sample)) for sample in response]
+                ),
             )
         )
         self.usage += info.usage
+
+        self._logger.debug(
+            {
+                "[HFModel.generate]": None,
+                "Context": context,
+                "Input": input,
+                "Output": response,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Do sample": do_sample,
+                "Top k": top_k,
+                "Info": info,
+            }
+        )
 
         return response, info
 
