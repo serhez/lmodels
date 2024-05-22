@@ -312,8 +312,13 @@ class HFModel(Model):
         ).to(self._config.device)
 
         # Decode the input tokens
-        inputs = self._tokenizer.decode(
-            input_tkns["input_ids"], skip_special_tokens=False
+        inputs = np.array(
+            [
+                self._tokenizer.decode(
+                    tkns, skip_special_tokens=False, clean_up_tokenization_spaces=True
+                )
+                for tkns in input_tkns["input_ids"]
+            ]
         )
 
         # Generate the output tokens
@@ -330,9 +335,15 @@ class HFModel(Model):
         )
 
         # Decode the output tokens
-        outputs = self._tokenizer.decode(
-            [o[len(input_tkns["input_ids"][i]) :] for i, o in enumerate(output_tkns)],
-            skip_special_tokens=True,
+        outputs = np.array(
+            [
+                self._tokenizer.decode(
+                    tkns[len(input_tkns["input_ids"][i]) :],
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True,
+                )
+                for i, tkns in enumerate(output_tkns)
+            ]
         )
 
         self._logger.debug(
@@ -340,10 +351,10 @@ class HFModel(Model):
                 "TMP DEBUG INFO": None,
                 "Input tkns": input_tkns,
                 "Inputs": inputs,
-                "Outputs": outputs,
                 "Output tkns": output_tkns,
-                "Input type": type(input_tkns),
-                "Output type": type(output_tkns),
+                "Outputs": outputs,
+                "Input tkns type": type(input_tkns),
+                "Output tkns type": type(output_tkns),
             }
         )
 
