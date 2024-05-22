@@ -313,6 +313,8 @@ class HFModel(Model):
         ).to(self._config.device)
 
         # Generate the output tokens
+        # The outputs are all appended to a tensor of length len(inputs) * n_samples
+        # We want to reshape it to a nested tensor of dimensions (len(inputs), n_samples)
         output_tkns = self._model.generate(
             **input_tkns,
             max_new_tokens=max_tokens,
@@ -323,7 +325,7 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             num_beams=n_beams,
             pad_token_id=self._tokenizer.eos_token_id,
-        )
+        ).reshape(len(context), n_samples, -1)
 
         self._logger.debug(
             {
@@ -348,20 +350,19 @@ class HFModel(Model):
                 for tkns in input_tkns["input_ids"]
             ]
         )
-        outputs = output_tkns
-        # outputs = np.array(
-        #     [
-        #         [
-        #             self._tokenizer.decode(
-        #                 tkns[len(input_tkns["input_ids"][i]) :],
-        #                 skip_special_tokens=True,
-        #                 clean_up_tokenization_spaces=True,
-        #             )
-        #             for j, tkns in enumerate(output_tkns[i])  # each sample
-        #         ]
-        #         for i in range(len(output_tkns))  # each input
-        #     ]
-        # )
+        outputs = np.array(
+            [
+                [
+                    self._tokenizer.decode(
+                        tkns[len(input_tkns["input_ids"][i]) :],
+                        skip_special_tokens=True,
+                        clean_up_tokenization_spaces=True,
+                    )
+                    for tkns in output_tkns[i]  # each sample
+                ]
+                for i in range(len(output_tkns))  # each input
+            ]
+        )
 
         self._logger.debug(
             {
