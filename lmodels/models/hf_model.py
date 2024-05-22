@@ -340,12 +340,15 @@ class HFModel(Model):
         # Decode the output tokens
         outputs = np.array(
             [
-                self._tokenizer.decode(
-                    tkns[len(input_tkns["input_ids"][i]) :],
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True,
-                )
-                for i, tkns in enumerate(output_tkns)
+                [
+                    self._tokenizer.decode(
+                        tkns[len(input_tkns["input_ids"][i]) :],
+                        skip_special_tokens=True,
+                        clean_up_tokenization_spaces=True,
+                    )
+                    for j, tkns in enumerate(output_tkns[i])  # each sample
+                ]
+                for i in range(len(output_tkns))  # each input
             ]
         )
 
