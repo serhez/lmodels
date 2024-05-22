@@ -306,6 +306,7 @@ class HFModel(Model):
         # Apply an architecture-specific context template
         input_tkns = self._tokenizer.apply_chat_template(
             context,
+            padding=True,
             add_generation_prompt=True,
             return_dict=True,
             return_tensors="pt",
@@ -315,7 +316,9 @@ class HFModel(Model):
         inputs = np.array(
             [
                 self._tokenizer.decode(
-                    tkns, skip_special_tokens=False, clean_up_tokenization_spaces=True
+                    tkns,
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=True,
                 )
                 for tkns in input_tkns["input_ids"]
             ]
