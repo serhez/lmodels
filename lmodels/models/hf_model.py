@@ -312,18 +312,6 @@ class HFModel(Model):
             return_tensors="pt",
         ).to(self._config.device)
 
-        # Decode the input tokens
-        inputs = np.array(
-            [
-                self._tokenizer.decode(
-                    tkns,
-                    skip_special_tokens=False,
-                    clean_up_tokenization_spaces=True,
-                )
-                for tkns in input_tkns["input_ids"]
-            ]
-        )
-
         # Generate the output tokens
         output_tkns = self._model.generate(
             **input_tkns,
@@ -337,20 +325,43 @@ class HFModel(Model):
             pad_token_id=self._tokenizer.eos_token_id,
         )
 
-        # Decode the output tokens
-        outputs = np.array(
+        self._logger.debug(
+            {
+                "TMP DEBUG INFO": None,
+                "Input tkns": input_tkns,
+                # "Inputs": inputs,
+                "Output tkns": output_tkns,
+                # "Outputs": outputs,
+                "Input tkns type": type(input_tkns),
+                "Output tkns type": type(output_tkns),
+            }
+        )
+
+        # Decode the tokens
+        inputs = np.array(
             [
-                [
-                    self._tokenizer.decode(
-                        tkns[len(input_tkns["input_ids"][i]) :],
-                        skip_special_tokens=True,
-                        clean_up_tokenization_spaces=True,
-                    )
-                    for j, tkns in enumerate(output_tkns[i])  # each sample
-                ]
-                for i in range(len(output_tkns))  # each input
+                self._tokenizer.decode(
+                    tkns,
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=True,
+                )
+                for tkns in input_tkns["input_ids"]
             ]
         )
+        outputs = output_tkns
+        # outputs = np.array(
+        #     [
+        #         [
+        #             self._tokenizer.decode(
+        #                 tkns[len(input_tkns["input_ids"][i]) :],
+        #                 skip_special_tokens=True,
+        #                 clean_up_tokenization_spaces=True,
+        #             )
+        #             for j, tkns in enumerate(output_tkns[i])  # each sample
+        #         ]
+        #         for i in range(len(output_tkns))  # each input
+        #     ]
+        # )
 
         self._logger.debug(
             {
