@@ -79,9 +79,9 @@ class HFModel(Model):
         n_beams: int = 1
         """The default number of beams to use for beam search."""
 
-        use_cache: bool = True
+        load_from_cache: bool = False
         """
-        Whether to use the cache for the loaded model and tokenizer.
+        Whether to load the tokenizer and model weights from a cache directory.
         The cache directory is specified by the `HF_HOME` environment variable, or the current directory if not set.
         """
 
@@ -469,6 +469,10 @@ class HFModel(Model):
                 "Input type": type(input),
                 "Output type": type(output),
             }
+        )
+
+        output = self._tokenizer.decode(
+            output[0][len(input[0]) :], skip_special_tokens=True
         )
 
         # elif isinstance(output, dict):

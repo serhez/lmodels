@@ -168,73 +168,6 @@ class Model(ABC):
 
         self._usage = value
 
-    # TODO: return logprobs too
-    def generate(
-        self,
-        context: Context,
-        n_samples: int = 1,
-        max_tokens: int | None = None,
-        **kwargs,
-    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
-        """
-        Generates the next tokens in the sequence given the context.
-
-        ### Definitions
-        ----------
-        - A single independent message is the smallest unit of input.
-            - Represented by a single string or dictionary.
-            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
-            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
-        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
-            - Represented by a list of strings/dictionaries.
-        - Multiple messages/conversations yield multiple outputs.
-            - Represented by a list of lists of strings/dictionaries.
-
-        ### Parameters
-        ----------
-        `context`: the context to generate from.
-        `max_tokens`: the maximum number of tokens to generate per context string.
-        `n_samples`: the number of samples to generate for each context string.
-
-        ### Returns
-        -------
-        A tuple containing:
-        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
-            - If `context` is a single string/dictionary, then `len(context)` is 1.
-        - Extra information about the generation process of the model.
-
-        ### Raises
-        -------
-        `Exception`: any exception raised by the model's internal implementation; consult the wrapped model's documentation for more information.
-        - This includes, e.g., errors for surpassing the context size, exceeding the credits available in your account for paid-for services, server errors, etc.
-        - You should handle these exceptions in your application.
-        `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
-        `ValueError`: if the input type is not supported.
-        `ValueError`: if a message dictionary does not contain a `content` field.
-        `AssertionError`: if a context list is provided and it is empty.
-        """
-
-        if isinstance(context, np.ndarray):
-            expected_n_calls = len(context) * n_samples
-        elif isinstance(context, list):
-            expected_n_calls = len(context) * n_samples
-        elif isinstance(context, Dataset):
-            expected_n_calls = len(context.test_set.inputs) * n_samples
-        else:
-            expected_n_calls = n_samples
-
-        if self._config.calls_threshold:
-            assert (
-                self.usage.n_calls + expected_n_calls <= self._config.calls_threshold
-            ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
-
-        return self._generate_batch(
-            self._parse_context(context),
-            n_samples=n_samples,
-            max_tokens=max_tokens,
-            **kwargs,
-        )
-
     def _parse_context(
         self,
         context: Context,
@@ -357,6 +290,78 @@ class Model(ABC):
             f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
         )
 
+    # TODO: return logprobs too
+    def generate(
+        self,
+        context: Context,
+        n_samples: int = 1,
+        max_tokens: int | None = None,
+        **kwargs,
+    ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
+        """
+        Generates the next tokens in the sequence given the context.
+
+        ### Definitions
+        ----------
+        - A single independent message is the smallest unit of input.
+            - Represented by a single string or dictionary.
+            - Dictionaries allow to add model-specific fields, such as `role` for OpenAI's models.
+            - Dictionaries can contain any number of fields, but the `content` field is required and contains the message's content.
+        - A single conversation of dependent messages is a list of messages, from which only a single output is generated.
+            - Represented by a list of strings/dictionaries.
+        - Multiple messages/conversations yield multiple outputs.
+            - Represented by a list of lists of strings/dictionaries.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        `n_samples`: the number of samples to generate for each context string.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - Extra information about the generation process of the model.
+
+        ### Raises
+        -------
+        `Exception`: any exception raised by the model's internal implementation; consult the wrapped model's documentation for more information.
+        - This includes, e.g., errors for surpassing the context size, exceeding the credits available in your account for paid-for services, server errors, etc.
+        - You should handle these exceptions in your application.
+        `AssertionError`: if the number of calls to the model's forward pass is expected to exceed the configured threshold.
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        if isinstance(context, np.ndarray):
+            expected_n_calls = len(context) * n_samples
+        elif isinstance(context, list):
+            expected_n_calls = len(context) * n_samples
+        elif isinstance(context, Dataset):
+            expected_n_calls = len(context.test_set.inputs) * n_samples
+        else:
+            expected_n_calls = n_samples
+
+        if self._config.calls_threshold:
+            assert (
+                self.usage.n_calls + expected_n_calls <= self._config.calls_threshold
+            ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
+
+        return self._generate_batch(
+            self._parse_context(context),
+            n_samples=n_samples,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
+
+    def _call_impl(self, *args, **kwargs):
+        return self.generate(*args, **kwargs)
+
+    __call__: Callable[..., Any] = _call_impl
+
     def _generate_batch(
         self,
         context: list[AnnotatedConversation],
@@ -419,11 +424,6 @@ class Model(ABC):
         )
 
         return outputs, agg_info
-
-    def _call_impl(self, *args, **kwargs):
-        return self.generate(*args, **kwargs)
-
-    __call__: Callable[..., Any] = _call_impl
 
     @abstractmethod
     def _generate_single(
