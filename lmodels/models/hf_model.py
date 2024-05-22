@@ -327,18 +327,6 @@ class HFModel(Model):
             pad_token_id=self._tokenizer.eos_token_id,
         ).reshape(len(context), n_samples, -1)
 
-        self._logger.debug(
-            {
-                "TMP DEBUG INFO": None,
-                "Input tkns": input_tkns,
-                # "Inputs": inputs,
-                "Output tkns": output_tkns,
-                # "Outputs": outputs,
-                "Input tkns type": type(input_tkns),
-                "Output tkns type": type(output_tkns),
-            }
-        )
-
         # Decode the tokens
         inputs = np.array(
             [
@@ -364,18 +352,6 @@ class HFModel(Model):
             ]
         )
 
-        self._logger.debug(
-            {
-                "TMP DEBUG INFO": None,
-                "Input tkns": input_tkns,
-                "Inputs": inputs,
-                "Output tkns": output_tkns,
-                "Outputs": outputs,
-                "Input tkns type": type(input_tkns),
-                "Output tkns type": type(output_tkns),
-            }
-        )
-
         # Record the generation information
         info = Model.GenerationInfo(
             usage=Usage(
@@ -384,7 +360,10 @@ class HFModel(Model):
                     len(input_tkns["input_ids"][i]) for i in range(len(context))
                 ),
                 n_tokens_output=sum(
-                    len(output_tkns[i]) - len(input_tkns["input_ids"][i])
+                    sum(
+                        len(output_tkns[i][j]) - len(input_tkns["input_ids"][i])
+                        for j in range(n_samples)
+                    )
                     for i in range(len(context))
                 ),
             )
