@@ -26,3 +26,6 @@ class DType(Enum):
         """Returns the corresponding `torch.dtype` for the enum value."""
 
         return getattr(torch, self.name)
+
+    def __str__(self) -> str:
+        return self.value
