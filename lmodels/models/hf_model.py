@@ -111,7 +111,7 @@ class HFModel(Model):
         ), "You must set the `HF_API_TOKEN` environment variable to use the Hugging Face models."
         api_token = os.environ["HF_API_TOKEN"]
 
-        if not config.use_cache:
+        if not config.load_from_cache:
             cache_dir = None
         elif "HF_HOME" in os.environ:
             cache_dir = os.environ["HF_HOME"]
