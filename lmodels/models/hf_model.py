@@ -16,9 +16,14 @@ try:
         AutoTokenizer,
         PreTrainedTokenizer,
     )
+    from transformers import __version__ as transformers_version
+
+    assert (
+        tuple(map(int, transformers_version.split("."))) >= (4, 41)
+    ), "You must install the `transformers[torch]` package with version >= 4.41 to use the Hugging Face models."
 except ImportError:
     raise ImportError(
-        "You must install the `transformers[torch]` package to use the Hugging Face models."
+        "You must install the `transformers[torch] >= 4.41` package to use the Hugging Face models."
     )
 
 from lmodels.model import Model
@@ -236,156 +241,145 @@ class HFModel(Model):
             top_k=top_k,
         )
 
-    # TODO: Implement batch generation
-    # def _generate_batch(
-    #     self,
-    #     context: list[AnnotatedConversation],
-    #     n_samples: int = 1,
-    #     max_tokens: int | None = None,
-    #     temperature: float | None = None,
-    #     do_sample: bool | None = None,
-    #     top_k: int | None = None,
-    #     top_p: float | None = None,
-    #     n_beams: int | None = None,
-    # ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
-    #     """
-    #     Internal method for generating samples in batches.
-    #
-    #     ### Parameters
-    #     ----------
-    #     `context`: the context to generate from.
-    #     `max_tokens`: the maximum number of tokens to generate per context string.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #     `n_samples`: the number of samples to generate for each context string.
-    #     - If `None`, the default number of samples specified in the model's configuration is used.
-    #     `temperature`: the temperature to use when sampling from the model's output.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #     `do_sample`: whether to sample from the model's output.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #     `top_k`: the number of top tokens to consider when sampling.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #     `top_p`: the cumulative probability threshold for nucleus sampling.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #     `n_beams`: the number of beams to use for beam search.
-    #     - If `None`, the default value specified in the model's configuration is used.
-    #
-    #     ### Returns
-    #     -------
-    #     A tuple containing:
-    #     - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
-    #         - If `context` is a single string/dictionary, then `len(context)` is 1.
-    #     - Extra information about the generation process of the model.
-    #
-    #     ### Raises
-    #     -------
-    #     `ValueError`: if the input type is not supported.
-    #     `ValueError`: if a message dictionary does not contain a `content` field.
-    #     `AssertionError`: if a context list is provided and it is empty.
-    #     """
-    #
-    #     if max_tokens is None:
-    #         max_tokens = self._config.max_tokens
-    #     if temperature is None:
-    #         temperature = self._config.temperature
-    #     if do_sample is None:
-    #         do_sample = self._config.do_sample
-    #     if top_k is None:
-    #         top_k = self._config.top_k
-    #     if top_p is None:
-    #         top_p = self._config.top_p
-    #     if n_beams is None:
-    #         n_beams = self._config.n_beams
-    #
-    #     if len(context) == 1:
-    #         return self._generate_single(
-    #             context[0],
-    #             n_samples,
-    #             max_tokens,
-    #             temperature,
-    #             do_sample,
-    #             top_k,
-    #             top_p,
-    #             n_beams,
-    #         )
-    #
-    #     inputs = []
-    #     for conversation in context:
-    #         input = conversation[0]["content"]
-    #         for i in range(1, len(conversation)):
-    #             input += "\n" + conversation[i]["content"]
-    #         inputs.append(input)
-    #
-    #     outputs = self._pipeline(
-    #         inputs,
-    #         batch_size=self._config.generate_batch_size,
-    #         do_sample=self._config.do_sample,
-    #         top_k=self._config.top_k,
-    #         num_return_sequences=n_samples,
-    #         eos_token_id=self._tokenizer.eos_token_id,
-    #         max_new_tokens=max_tokens,
-    #         return_text=True,
-    #     )
-    #
-    #     if outputs is None:
-    #         response = np.array([[""] * n_samples] * len(inputs))
-    #         self._logger.warn("[HFModel] The output of the model was `None`.")
-    #     elif isinstance(outputs, dict):
-    #         response = np.array(
-    #             [
-    #                 [
-    #                     ""
-    #                     if outputs is None
-    #                     or "generated_text" not in outputs
-    #                     or outputs["generated_text"] is None
-    #                     else outputs["generated_text"][len(input) :],
-    #                 ]
-    #             ]
-    #         )
-    #     elif isinstance(outputs, (list, np.ndarray)):
-    #         response = np.empty((len(inputs), n_samples), dtype=np.str_)
-    #         for i, output in enumerate(outputs):
-    #             if output is None:
-    #                 response[i, :] = ""
-    #                 continue
-    #             for j, sample in enumerate(output):
-    #                 if sample is None or sample["generated_text"] is None:
-    #                     response[i, j] = ""
-    #                 else:
-    #                     response[i, j] = sample["generated_text"][len(inputs[i]) :]
-    #     else:
-    #         raise ValueError(f"[HFModel] Unexpected batch output type: {type(outputs)}")
-    #
-    #     info = Model.GenerationInfo(
-    #         usage=Usage(
-    #             n_calls=len(inputs) * n_samples,
-    #             n_tokens_context=sum(
-    #                 [len(self._tokenizer.encode(input)) for input in inputs]
-    #             ),
-    #             n_tokens_output=sum(
-    #                 [
-    #                     sum([len(self._tokenizer.encode(sample)) for sample in output])
-    #                     for output in response
-    #                 ]
-    #             ),
-    #         )
-    #     )
-    #     self.usage += info.usage
-    #
-    #     self._logger.debug(
-    #         {
-    #             "[HFModel.generate]": None,
-    #             "Batch context": context,
-    #             "Batch input": inputs,
-    #             "Batch output": response,
-    #             "N. samples": n_samples,
-    #             "Max. tokens": max_tokens,
-    #             "Do sample": do_sample,
-    #             "Top k": top_k,
-    #             "Info": info,
-    #         }
-    #     )
-    #
-    #     return response, info
+    def _generate_batch(
+        self,
+        context: list[AnnotatedConversation],
+        n_samples: int = 1,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        do_sample: bool | None = None,
+        top_k: int | None = None,
+        top_p: float | None = None,
+        n_beams: int | None = None,
+    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+        """
+        Internal method for generating samples in batches.
+
+        ### Parameters
+        ----------
+        `context`: the context to generate from.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, the default value specified in the model's configuration is used.
+        `n_samples`: the number of samples to generate for each context string.
+        - If `None`, the default number of samples specified in the model's configuration is used.
+        `temperature`: the temperature to use when sampling from the model's output.
+        - If `None`, the default value specified in the model's configuration is used.
+        `do_sample`: whether to sample from the model's output.
+        - If `None`, the default value specified in the model's configuration is used.
+        `top_k`: the number of top tokens to consider when sampling.
+        - If `None`, the default value specified in the model's configuration is used.
+        `top_p`: the cumulative probability threshold for nucleus sampling.
+        - If `None`, the default value specified in the model's configuration is used.
+        `n_beams`: the number of beams to use for beam search.
+        - If `None`, the default value specified in the model's configuration is used.
+
+        ### Returns
+        -------
+        A tuple containing:
+        - A `numpy.NDArray` of strings of shape (`len(context)`, `n_samples`).
+            - If `context` is a single string/dictionary, then `len(context)` is 1.
+        - Extra information about the generation process of the model.
+
+        ### Raises
+        -------
+        `ValueError`: if the input type is not supported.
+        `ValueError`: if a message dictionary does not contain a `content` field.
+        `AssertionError`: if a context list is provided and it is empty.
+        """
+
+        if max_tokens is None:
+            max_tokens = self._config.max_tokens
+        if temperature is None:
+            temperature = self._config.temperature
+        if do_sample is None:
+            do_sample = self._config.do_sample
+        if top_k is None:
+            top_k = self._config.top_k
+        if top_p is None:
+            top_p = self._config.top_p
+        if n_beams is None:
+            n_beams = self._config.n_beams
+
+        if self._should_merge_system:
+            context = merge_system_messages(context)
+
+        # Apply an architecture-specific context template
+        input_tkns = self._tokenizer.apply_chat_template(
+            context,
+            add_generation_prompt=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self._config.device)
+
+        # Decode the input tokens
+        inputs = self._tokenizer.decode(
+            input_tkns["input_ids"], skip_special_tokens=False
+        )
+
+        # Generate the output tokens
+        output_tkns = self._model.generate(
+            **input_tkns,
+            max_new_tokens=max_tokens,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            num_return_sequences=n_samples,
+            num_beams=n_beams,
+            pad_token_id=self._tokenizer.eos_token_id,
+        )
+
+        # Decode the output tokens
+        outputs = self._tokenizer.decode(
+            [o[len(input_tkns["input_ids"][i]) :] for i, o in enumerate(output_tkns)],
+            skip_special_tokens=True,
+        )
+
+        self._logger.debug(
+            {
+                "TMP DEBUG INFO": None,
+                "Input tkns": input_tkns,
+                "Inputs": inputs,
+                "Outputs": outputs,
+                "Output tkns": output_tkns,
+                "Input type": type(input_tkns),
+                "Output type": type(output_tkns),
+            }
+        )
+
+        # Record the generation information
+        info = Model.GenerationInfo(
+            usage=Usage(
+                n_calls=len(context),
+                n_tokens_context=sum(
+                    len(input_tkns["input_ids"][i]) for i in range(len(context))
+                ),
+                n_tokens_output=sum(
+                    len(output_tkns[i]) - len(input_tkns["input_ids"][i])
+                    for i in range(len(context))
+                ),
+            )
+        )
+        self.usage += info.usage
+
+        self._logger.debug(
+            {
+                "[HFModel.generate]": None,
+                "Context": context,
+                "Inputs": inputs,
+                "Outputs": outputs,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Temperature": temperature,
+                "Do sample": do_sample,
+                "Top k": top_k,
+                "Top p": top_p,
+                "N. beams": n_beams,
+                "Info": info,
+            }
+        )
+
+        return outputs, info
 
     def _generate_single(
         self,
@@ -426,105 +420,18 @@ class HFModel(Model):
         - Extra information about the generation process of the model.
         """
 
-        if max_tokens is None:
-            max_tokens = self._config.max_tokens
-        if temperature is None:
-            temperature = self._config.temperature
-        if do_sample is None:
-            do_sample = self._config.do_sample
-        if top_k is None:
-            top_k = self._config.top_k
-        if top_p is None:
-            top_p = self._config.top_p
-        if n_beams is None:
-            n_beams = self._config.n_beams
-
-        if self._should_merge_system:
-            context = merge_system_messages(context)
-
-        # Apply an architecture-specific context template
-        input = self._tokenizer.apply_chat_template(
-            context,
-            add_generation_prompt=not context[-1]["role"] == "assistant",
-            return_dict=True,
-            return_tensors="pt",
-        ).to(self._config.device)
-
-        output = self._model.generate(
-            **input,
-            max_new_tokens=max_tokens,
-            do_sample=do_sample,
-            temperature=temperature,
-            top_k=top_k,
-            top_p=top_p,
-            num_return_sequences=n_samples,
-            num_beams=n_beams,
-            pad_token_id=self._tokenizer.eos_token_id,
-        )
-        self._logger.debug(
-            {
-                "TMP DEBUG INFO": None,
-                "Input": input,
-                "Output": output,
-                "Input type": type(input),
-                "Output type": type(output),
-            }
+        outputs, info = self._generate_batch(
+            [context],
+            n_samples,
+            max_tokens,
+            temperature,
+            do_sample,
+            top_k,
+            top_p,
+            n_beams,
         )
 
-        output = self._tokenizer.decode(
-            output[0][len(input[0]) :], skip_special_tokens=True
-        )
-
-        # elif isinstance(output, dict):
-        #     response = np.array(
-        #         [
-        #             ""
-        #             if output is None
-        #             or "generated_text" not in output
-        #             or output["generated_text"] is None
-        #             else output["generated_text"][len(input) :],
-        #         ]
-        #     )
-        # elif isinstance(output, list):
-        #     response = np.array(
-        #         [
-        #             ""
-        #             if sample is None
-        #             or "generated_text" not in sample
-        #             or sample["generated_text"] is None
-        #             else sample["generated_text"][len(input) :]
-        #             for sample in output
-        #         ]
-        #     )
-        # else:
-        #     raise ValueError(f"[HFModel] Unexpected output type: {type(output)}")
-
-        info = Model.GenerationInfo(
-            usage=Usage(
-                n_calls=n_samples,
-                n_tokens_context=len(input["input_ids"][0]),
-                n_tokens_output=sum(len(sample) - len(input[0]) for sample in output),
-            )
-        )
-        self.usage += info.usage
-
-        self._logger.debug(
-            {
-                "[HFModel.generate]": None,
-                "Context": context,
-                "Input": self._tokenizer.decode(
-                    input["input_ids"][0], skip_special_tokens=False
-                ),
-                "Output": output,
-                "N. samples": n_samples,
-                "Max. tokens": max_tokens,
-                "Do sample": do_sample,
-                "Top k": top_k,
-                "Info": info,
-            }
-        )
-
-        return output, info
+        return outputs[0], info
 
     def fine_tune(self, _):
         raise NotImplementedError(
