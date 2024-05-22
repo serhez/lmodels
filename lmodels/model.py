@@ -8,44 +8,14 @@ import numpy as np
 import numpy.typing as npt
 
 from lmodels.protocols import Dataset, Logger
+from lmodels.types import AnnotatedConversation, Context
 from lmodels.utils import NullLogger, Usage, classproperty
-
-Message = str
-"""A single simple message."""
-
-AnnotatedMessage = dict[str, str]
-"""
-A single message with model-specific fields, such as `role` for OpenAI's models.
-Must contain a `content` field.
-"""
-
-Conversation = list[Message]
-"""A list of messages forming a conversation."""
-
-AnnotatedConversation = list[AnnotatedMessage]
-"""A list of messages with model-specific fields forming a conversation."""
-
-Context = (
-    Message
-    | AnnotatedMessage
-    | Conversation
-    | AnnotatedConversation
-    | list[Conversation]
-    | list[AnnotatedConversation]
-    # Alternative representations
-    | npt.NDArray[
-        np.str_
-    ]  # can be equivalent to List[str] or List[List[str]], depending on the shape
-    | Dataset  # equivalent to List[List[str]], where the length of each inner list is 1
-)
-"""
-The possible types of context input for the `generate` method and its derivatives.
-Note that a list of messages (`List[Message]`) is equivalent to a single conversation (`Conversation`), and the same applies to annotated messages.
-"""
 
 
 class Model(ABC):
     """An abstract class for interacting with a model."""
+
+    _DEFAULT_ROLE = "user"
 
     @dataclass(kw_only=True)
     class Config:
@@ -204,7 +174,6 @@ class Model(ABC):
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
-        unsafe: bool = False,
         **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -226,7 +195,6 @@ class Model(ABC):
         `context`: the context to generate from.
         `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
-        `unsafe`: whether to bypass expensive input validations.
 
         ### Returns
         -------
@@ -261,26 +229,26 @@ class Model(ABC):
             ), f"Number of calls to the model's forward pass are expected to exceed the configured threshold of `Config.calls_threshold={self._config.calls_threshold}`."
 
         return self._generate_batch(
-            context, n_samples=n_samples, max_tokens=max_tokens, unsafe=unsafe, **kwargs
+            self._parse_context(context),
+            n_samples=n_samples,
+            max_tokens=max_tokens,
+            **kwargs,
         )
 
     def _parse_context(
         self,
         context: Context,
-        unsafe: bool = False,
-    ) -> list[list[dict[str, str]]]:
+    ) -> list[AnnotatedConversation]:
         """
-        Parses the context input.
-        Check `generate`'s signature for allowed input types and their meanings.
+        Parses the context input and returns it as a list of `AnnotatedConversation` objects.
 
         ### Parameters
         ----------
         `context`: the context to parse.
-        `unsafe`: whether to bypass expensive input validations.
 
         ### Returns
         -------
-        The parsed context, as a list of list of dictionaries.
+        The parsed context as a list of `AnnotatedConversation` objects.
         - If the length of the outer list is 1, then the context is a single message/conversation.
 
         ### Raises
@@ -295,12 +263,14 @@ class Model(ABC):
 
         # Single message
         if isinstance(context, str):
-            return [[{"content": context}]]
+            return [[{"content": context, "role": self._DEFAULT_ROLE}]]
         elif isinstance(context, dict):  # with model-specific fields
             if "content" not in context:
                 raise ValueError(
                     "The message dictionary must contain a `content` field."
                 )
+            if "role" not in context:
+                context["role"] = self._DEFAULT_ROLE
             return [[context]]
 
         # Single conversation
@@ -308,19 +278,22 @@ class Model(ABC):
             (isinstance(context, np.ndarray) and context.ndim == 1)
             or isinstance(context, list)
         ) and all(isinstance(context[i], str) for i in range(len(context))):
-            return [[{"content": input} for input in context]]  # type: ignore[reportReturnType]
+            return [
+                [{"content": input, "role": self._DEFAULT_ROLE} for input in context]
+            ]  # type: ignore[reportReturnType]
         elif (
             (isinstance(context, np.ndarray) and context.ndim == 1)
             or isinstance(context, list)
         ) and all(
             isinstance(context[i], dict) for i in range(len(context))
         ):  # with model-specific fields
-            if not unsafe:
-                for message in context:
-                    if "content" not in message:
-                        raise ValueError(
-                            "All message dictionaries must contain a `content` field."
-                        )
+            for message in context:
+                if "content" not in message:
+                    raise ValueError(
+                        "All message dictionaries must contain a `content` field."
+                    )
+                if "role" not in message:
+                    message["role"] = self._DEFAULT_ROLE  # type: ignore
             return [context]  # type: ignore[reportReturnType]
 
         # Multiple messages/conversations
@@ -342,7 +315,10 @@ class Model(ABC):
             )
         ):
             return [  # type: ignore[reportReturnType]
-                [{"content": message} for message in conversation]
+                [
+                    {"content": message, "role": self._DEFAULT_ROLE}
+                    for message in conversation
+                ]
                 for conversation in context
             ]
         elif (
@@ -362,16 +338,20 @@ class Model(ABC):
                 for i, j in np.ndindex((len(context), len(context[0])))
             )
         ):
-            if not unsafe:
-                for conversation in context:
-                    for message in conversation:
-                        if "content" not in message:
-                            raise ValueError(
-                                "All message dictionaries must contain a `content` field."
-                            )
+            for conversation in context:
+                for message in conversation:
+                    if "content" not in message:
+                        raise ValueError(
+                            "All message dictionaries must contain a `content` field."
+                        )
+                    if "role" not in message:
+                        message["role"] = self._DEFAULT_ROLE  # type: ignore[reportIndexIssue]
             return context  # type: ignore[reportReturnType]
         elif isinstance(context, Dataset):
-            return [[{"content": input}] for input in context.test_set.inputs]
+            return [
+                [{"content": input, "role": self._DEFAULT_ROLE}]
+                for input in context.test_set.inputs
+            ]
 
         raise ValueError(
             f"Invalid type for `context`: {type(context)}. Check the function's signature for allowed input types."
@@ -379,10 +359,9 @@ class Model(ABC):
 
     def _generate_batch(
         self,
-        context: Context,
+        context: list[AnnotatedConversation],
         n_samples: int = 1,
         max_tokens: int | None = None,
-        unsafe: bool = False,
         **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -394,7 +373,6 @@ class Model(ABC):
         `context`: the context to generate from.
         `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
-        `unsafe`: whether to bypass expensive input validations.
         Other keyword arguments can be passed to the model's generation method, given the specific model.
 
         ### Returns
@@ -410,8 +388,6 @@ class Model(ABC):
         `ValueError`: if a message dictionary does not contain a `content` field.
         `AssertionError`: if a context list is provided and it is empty.
         """
-
-        context = self._parse_context(context, unsafe=unsafe)
 
         self._logger.info(
             f"[{self.__class__.__name__}] Generating {n_samples} samples for {len(context)} contexts"
@@ -429,7 +405,7 @@ class Model(ABC):
         ind_info = list(ind_info)
 
         # Common usage statistics
-        agg_info = sum(ind_info, start=self.generation_info_cls())  # type: ignore[reportCallIssue, reportArgumentType]
+        agg_info = sum(ind_info, start=self.generation_info_cls())
 
         self._logger.debug(
             {

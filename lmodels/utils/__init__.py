@@ -1,8 +1,8 @@
+from .context import merge_system_messages
 from .logging import NullLogger
-from .types import DType
 from .usage import Usage
 
-__all__ = ["NullLogger", "DType", "Usage", "classproperty"]
+__all__ = ["NullLogger", "Usage", "classproperty", "merge_system_messages"]
 
 
 # Damn you, Python developers...

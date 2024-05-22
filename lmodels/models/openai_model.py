@@ -14,8 +14,9 @@ try:
 except ImportError:
     raise ImportError("You must install the `openai` package to use the OpenAI models.")
 
-from lmodels.model import AnnotatedConversation, Model
+from lmodels import Model
 from lmodels.protocols import Logger
+from lmodels.types import AnnotatedConversation
 from lmodels.utils import Usage, classproperty
 
 
@@ -28,11 +29,7 @@ class OpenAIModel(Model):
     Other environment variables that can optionally be set are:
     - `OPENAI_ORG_ID`
     - `AZURE_OPENAI_AD_TOKEN`
-
-    The default role for messages is "user" if none is provided when using `generate` via annotated messages (i.e., dictionaries).
     """
-
-    _DEFAULT_ROLE = "user"  # if modified, reflect on the docstring above and any other relevant documentation
 
     @dataclass(kw_only=True)
     class Config(Model.Config):
@@ -180,7 +177,6 @@ class OpenAIModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
-        unsafe: bool = False,
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
@@ -205,7 +201,6 @@ class OpenAIModel(Model):
         `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
         - If `None`, the default number of samples specified in the model's configuration is used.
-        `unsafe`: whether to bypass expensive input validations.
         `architecture`: the name of the model architecture to use.
         - If `None`, the default architecture specified in the model's configuration is used.
         `temperature`: the temperature for sampling from the model.
@@ -235,7 +230,6 @@ class OpenAIModel(Model):
             context,
             n_samples,
             max_tokens,
-            unsafe,
             architecture=architecture,
             temperature=temperature,
             top_p=top_p,
@@ -251,7 +245,7 @@ class OpenAIModel(Model):
         top_p: float | None = None,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
-        The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
+        The model's internal implementation of `generate` acting on a single annotated conversation (i.e., list of dict messages).
 
         ### Parameters
         ----------
@@ -283,12 +277,8 @@ class OpenAIModel(Model):
         if top_p is None:
             top_p = self._config.top_p
 
-        for message in context:
-            if "role" not in message:
-                message["role"] = self._DEFAULT_ROLE
-
         output = self._client.chat.completions.create(
-            messages=context,
+            messages=context,  # type: ignore[reportArgumentType]
             model=self._config.architecture,
             max_tokens=max_tokens,
             n=n_samples,

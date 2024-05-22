@@ -7,8 +7,9 @@ import numpy.typing as npt
 import requests
 import transformers
 
-from lmodels.model import AnnotatedConversation, Model
+from lmodels import Model
 from lmodels.protocols import Logger
+from lmodels.types import AnnotatedConversation
 from lmodels.utils import Usage, classproperty
 
 
