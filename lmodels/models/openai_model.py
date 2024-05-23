@@ -281,11 +281,11 @@ class OpenAIModel(Model):
 
         output = self._client.chat.completions.create(
             messages=context,  # type: ignore[reportArgumentType]
-            model=self._config.architecture,
+            model=architecture,
             max_tokens=max_tokens,
             n=n_samples,
-            temperature=self._config.temperature,
-            top_p=self._config.top_p,
+            temperature=temperature,
+            top_p=top_p,
         )
 
         info = OpenAIModel.GenerationInfo(
