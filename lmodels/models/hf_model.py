@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -182,6 +183,7 @@ class HFModel(Model):
         top_k: float | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
         Generates the next tokens in the sequence given the context.
@@ -251,6 +253,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
         Internal method for generating samples in batches.
@@ -399,6 +402,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).

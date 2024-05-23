@@ -296,7 +296,7 @@ class Model(ABC):
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         Generates the next tokens in the sequence given the context.

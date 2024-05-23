@@ -180,6 +180,7 @@ class OpenAIModel(Model):
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         Generates the next tokens in the sequence given the context.
@@ -243,6 +244,7 @@ class OpenAIModel(Model):
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
         The model's internal implementation of `generate` acting on a single annotated conversation (i.e., list of dict messages).
