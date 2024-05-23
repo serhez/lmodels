@@ -17,11 +17,12 @@ try:
         AutoTokenizer,
         PreTrainedTokenizer,
     )
-    from transformers import __version__ as transformers_version
-
-    assert (
-        tuple(map(int, transformers_version.split("."))) >= (4, 41)
-    ), "You must install the `transformers[torch]` package with version >= 4.41 to use the Hugging Face models."
+    # FIX:
+    # from transformers import __version__ as transformers_version
+    #
+    # assert (
+    #     tuple(map(int, transformers_version.split("."))) >= (4, 41)
+    # ), "You must install the `transformers[torch]` package with version >= 4.41 to use the Hugging Face models."
 except ImportError:
     raise ImportError(
         "You must install the `transformers[torch] >= 4.41` package to use the Hugging Face models."
