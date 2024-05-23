@@ -72,7 +72,10 @@ class HFModel(Model):
         """The name of the architecture to use. Must be listed as a Hugging Face architecture."""
 
         temperature: float = 0.1
-        """The default temperature to use when sampling from the model's output."""
+        """
+        The default temperature to use when sampling from the model's output.
+        It must be greater than 0.0. For deterministic outputs, set `Config.do_sample = False`.
+        """
 
         do_sample: bool = True
         """The default value of whether to sample from the model's output."""
@@ -303,6 +306,10 @@ class HFModel(Model):
             top_p = self._config.top_p
         if n_beams is None:
             n_beams = self._config.n_beams
+
+        if np.isclose(temperature, 0.0):
+            temperature = 0.1  # temperature must be > 0.0
+            do_sample = False
 
         if self._should_merge_system:
             context = merge_system_messages(context)
