@@ -211,6 +211,7 @@ class HFModel(Model):
         `n_samples`: the number of samples to generate for each context string.
         - If `None`, the default number of samples specified in the model's configuration is used.
         `temperature`: the temperature to use when sampling from the model's output.
+        - It must be greater than 0.0. For deterministic outputs, set `do_sample = False`.
         - If `None`, the default value specified in the model's configuration is used.
         `do_sample`: whether to sample from the model's output.
         - If `None`, the default value specified in the model's configuration is used.
