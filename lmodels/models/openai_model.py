@@ -14,10 +14,11 @@ try:
 except ImportError:
     raise ImportError("You must install the `openai` package to use the OpenAI models.")
 
+from lcommon.protocols import Logger
+from lcommon.types import AnnotatedConversation
+from lcommon.utils import Usage, classproperty
+
 from lmodels import Model
-from lmodels.protocols import Logger
-from lmodels.types import AnnotatedConversation
-from lmodels.utils import Usage, classproperty
 
 
 class OpenAIModel(Model):

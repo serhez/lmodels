@@ -6,11 +6,11 @@ import numpy as np
 import numpy.typing as npt
 import requests
 import transformers
+from lcommon.protocols import Logger
+from lcommon.types import AnnotatedConversation
+from lcommon.utils import Usage, classproperty
 
 from lmodels import Model
-from lmodels.protocols import Logger
-from lmodels.types import AnnotatedConversation
-from lmodels.utils import Usage, classproperty
 
 
 @dataclass(kw_only=True)

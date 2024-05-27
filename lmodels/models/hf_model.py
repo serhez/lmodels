@@ -7,9 +7,8 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import torch
-
-from lmodels.types import AnnotatedConversation, Context, DType
-from lmodels.utils import Usage, classproperty, merge_system_messages
+from lcommon.types import AnnotatedConversation, Context, DType
+from lcommon.utils import Usage, classproperty, merge_system_messages
 
 try:
     from transformers import (
