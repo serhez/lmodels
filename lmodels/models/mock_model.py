@@ -1,6 +1,7 @@
 import os
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -164,6 +165,7 @@ class MockModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
