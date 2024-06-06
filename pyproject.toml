@@ -25,7 +25,7 @@ dependencies = [
     "omegaconf",
     "requests",
     "torch",
-    "git+https://github.com/serhez/lcommon.git",
+    "lcommon@git+https://github.com/serhez/lcommon.git",
 ]
 
 [project.urls]
