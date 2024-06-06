@@ -230,12 +230,13 @@ class Model(ABC, Provider):
         parsed_context = parse_context(context)
 
         if len(parsed_context) == 1:
-            return self._generate_single(
+            output, info = self._generate_single(
                 parsed_context[0],
                 n_samples=n_samples,
                 max_tokens=max_tokens,
                 **kwargs,
             )
+            return np.array([output]), info
 
         return self._generate_batch(
             parsed_context,
