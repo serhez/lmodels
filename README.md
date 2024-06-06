@@ -8,7 +8,8 @@ A common API is used for all available models. This means that, while different 
 
 - `max_tokens`: the maximum number of tokens to generate per context.
 - `architecture`: the specific model architecture and pre-trained weights to use; not all models support architecture switching, supporting only the initial loading of the architecture at initialization time.
-- `temperature`: the temperature to use during generation, where the value `0.0` will imply determinism in the responses.
+- `temperature`: the temperature to use during generation, where the value `0.0` will imply greediness in the responses.
+    - Note that most model implementations will arrive at a "divide-by-zero" issue when setting `temperature = 0.0`. This is why some of them will not achieve perfectly greedy token selection, as they will replace a zero value by a very small one.
 - `top_k`: the number of tokens with the highest probability which will be considered when sampling.
 - `top_p`: the cumulative probability threshold for nucleus sampling.
 - `n_beams`: the number of beams to use for beam search.
