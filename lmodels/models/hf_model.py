@@ -27,8 +27,9 @@ except ImportError:
         "You must install the `transformers[torch] >= 4.41` package to use the Hugging Face models."
     )
 
+from lcommon.protocols import Logger
+
 from lmodels.model import Model
-from lmodels.protocols import Logger
 
 
 class HFModel(Model):
