@@ -24,10 +24,15 @@ class Model(ABC, Provider):
         max_tokens: int = 100
         """The default value for the maximum number of tokens to generate per context string."""
 
-        train_batch_size: int = 64
+        training_batch_size: int = 64
         """The batch size for training purposes."""
 
-        generate_batch_size: int = 64
+        # TODO: enforce
+        use_generation_batch: bool = True
+        """Whether to use batches for inference purposes."""
+
+        # TODO: enforce
+        generation_batch_size: int = 64
         """The batch size for inference purposes."""
 
         calls_threshold: int | None = 100
@@ -229,21 +234,34 @@ class Model(ABC, Provider):
 
         parsed_context = parse_context(context)
 
-        if len(parsed_context) == 1:
-            output, info = self._generate_single(
-                parsed_context[0],
+        # Single generation if only one context is provided or batch generation is disabled
+        if len(parsed_context) <= 1 or not self._config.use_generation_batch:
+            outputs, info = [], self.generation_info_cls()
+            for single_context in parsed_context:
+                output, ind_info = self._generate_single(
+                    single_context,
+                    n_samples=n_samples,
+                    max_tokens=max_tokens,
+                    **kwargs,
+                )
+                outputs.append(output)
+                info += ind_info
+            return np.array(outputs), info
+
+        # Generation in batches of `Config.generate_batch_size` size
+        outputs, info = [], self.generation_info_cls()
+        for i in range(0, len(parsed_context), self._config.generation_batch_size):
+            batch_context = parsed_context[i : i + self._config.generation_batch_size]
+            batch_outputs, batch_info = self._generate_batch(
+                batch_context,
                 n_samples=n_samples,
                 max_tokens=max_tokens,
                 **kwargs,
             )
-            return np.array([output]), info
+            outputs.append(batch_outputs)
+            info += batch_info
 
-        return self._generate_batch(
-            parsed_context,
-            n_samples=n_samples,
-            max_tokens=max_tokens,
-            **kwargs,
-        )
+        return np.vstack(outputs), info
 
     def _call_impl(self, *args, **kwargs):
         return self.generate(*args, **kwargs)
