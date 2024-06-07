@@ -27,11 +27,9 @@ class Model(ABC, Provider):
         training_batch_size: int = 64
         """The batch size for training purposes."""
 
-        # TODO: enforce
         use_generation_batch: bool = True
         """Whether to use batches for inference purposes."""
 
-        # TODO: enforce
         generation_batch_size: int = 64
         """The batch size for inference purposes."""
 
