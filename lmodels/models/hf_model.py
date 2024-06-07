@@ -244,8 +244,11 @@ class HFModel(Model):
             context,
             n_samples,
             max_tokens,
+            temperature=temperature,
             do_sample=do_sample,
             top_k=top_k,
+            top_p=top_p,
+            n_beams=n_beams,
         )
 
     def _generate_batch(
@@ -309,7 +312,7 @@ class HFModel(Model):
             n_beams = self._config.n_beams
 
         if np.isclose(temperature, 0.0):
-            temperature = 0.1  # temperature must be > 0.0
+            temperature = 0.01  # temperature must be > 0.0
             do_sample = False
 
         if self._should_merge_system:
@@ -445,11 +448,11 @@ class HFModel(Model):
             [context],
             n_samples,
             max_tokens,
-            temperature,
-            do_sample,
-            top_k,
-            top_p,
-            n_beams,
+            temperature=temperature,
+            do_sample=do_sample,
+            top_k=top_k,
+            top_p=top_p,
+            n_beams=n_beams,
         )
 
         return outputs[0], info
