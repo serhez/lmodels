@@ -312,8 +312,10 @@ class HFModel(Model):
             n_beams = self._config.n_beams
 
         if np.isclose(temperature, 0.0):
-            temperature = 0.01  # temperature must be > 0.0
             do_sample = False
+            temperature = None
+            top_k = None
+            top_p = None
 
         if self._should_merge_system:
             context = merge_system_messages(context)
