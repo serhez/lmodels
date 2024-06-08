@@ -8,14 +8,15 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from lcommon.types import AnnotatedConversation, Context, DType
-from lcommon.utils import Usage, classproperty, merge_system_messages
+from lcommon.utils import (
+    Usage,
+    classproperty,
+    merge_conversation,
+    merge_system_messages,
+)
 
 try:
-    from transformers import (
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        PreTrainedTokenizer,
-    )
+    from transformers import AutoModelForCausalLM, AutoTokenizer
     # FIX:
     # from transformers import __version__ as transformers_version
     #
@@ -183,6 +184,7 @@ class HFModel(Model):
         top_k: float | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        use_context_template: bool = True,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
@@ -217,6 +219,7 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
+        `use_context_template`: whether to apply an architecture-specific input context template, if available.
 
         ### Returns
         -------
@@ -245,6 +248,7 @@ class HFModel(Model):
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
+            use_context_template=use_context_template,
         )
 
     def _generate_batch(
@@ -257,6 +261,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        use_context_template: bool = True,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
@@ -279,6 +284,7 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
+        `use_context_template`: whether to apply an architecture-specific input context template, if available.
 
         ### Returns
         -------
@@ -316,14 +322,26 @@ class HFModel(Model):
         if self._should_merge_system:
             context = merge_system_messages(context)
 
-        # Apply an architecture-specific context template
-        input_tkns = self._tokenizer.apply_chat_template(
-            context,
-            padding=True,
-            add_generation_prompt=True,
-            return_dict=True,
-            return_tensors="pt",
-        ).to(self._config.device)
+        if use_context_template:
+            # Apply an architecture-specific context template
+            input_tkns = self._tokenizer.apply_chat_template(
+                context,
+                padding=True,
+                add_generation_prompt=True,
+                return_dict=True,
+                return_tensors="pt",
+            ).to(self._config.device)
+        else:
+            # Tokenize the input context
+            input_tkns = [
+                self._tokenizer(
+                    merge_conversation(conversation),
+                    padding=True,
+                    add_special_tokens=True,
+                    return_tensors="pt",
+                ).to(self._config.device)
+                for conversation in context
+            ]
 
         # Generate the output tokens
         # The outputs are all appended to a tensor of length len(inputs) * n_samples
@@ -412,6 +430,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        use_context_template: bool = True,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         """
@@ -434,6 +453,7 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
+        `use_context_template`: whether to apply an architecture-specific input context template, if available.
 
         ### Returns
         -------
@@ -451,6 +471,7 @@ class HFModel(Model):
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
+            use_context_template=use_context_template,
         )
 
         return outputs[0], info
