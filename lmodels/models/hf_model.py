@@ -220,6 +220,7 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
+        - This correspondes to using the `apply_chat_template` method of the tokenizer.
 
         ### Returns
         -------
@@ -285,6 +286,7 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
+        - This correspondes to using the `apply_chat_template` method of the tokenizer.
 
         ### Returns
         -------
@@ -454,6 +456,7 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
+        - This correspondes to using the `apply_chat_template` method of the tokenizer.
 
         ### Returns
         -------
