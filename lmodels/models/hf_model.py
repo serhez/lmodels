@@ -173,10 +173,6 @@ class HFModel(Model):
 
         return True if "mistralai" in self._config.architecture.lower() else False
 
-    @property
-    def tokenizer(self) -> PreTrainedTokenizer:
-        return self._tokenizer
-
     def generate(
         self,
         context: Context,

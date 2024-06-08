@@ -167,12 +167,6 @@ class OpenAIModel(Model):
 
             self._client = OpenAI()
 
-    @property
-    def tokenizer(self) -> transformers.PreTrainedTokenizer:
-        raise NotImplementedError(
-            "The OpenAI model does not currently provide a tokenizer."
-        )
-
     def generate(
         self,
         context: AnnotatedConversation,

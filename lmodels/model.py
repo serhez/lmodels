@@ -148,14 +148,6 @@ class Model(ABC, Provider):
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self._config.name})"
 
-    # TODO: wrap tokenizers in our own common interface class (belonging to this module)
-    @property
-    @abstractmethod
-    def tokenizer(self) -> Any:
-        """The tokenizer of the model."""
-
-        ...
-
     @property
     def usage(self) -> Usage:
         """The aggregated usage statistics of the model instance, accounting for all generations."""

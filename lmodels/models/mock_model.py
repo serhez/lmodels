@@ -156,10 +156,6 @@ class MockModel(Model):
             except FileNotFoundError:
                 pass
 
-    @property
-    def tokenizer(self) -> transformers.PreTrainedTokenizer:
-        raise NotImplementedError("The mock model does not have a tokenizer.")
-
     def _generate_single(
         self,
         context: AnnotatedConversation,
