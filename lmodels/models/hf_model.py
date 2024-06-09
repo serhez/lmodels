@@ -335,15 +335,15 @@ class HFModel(Model):
             ).to(self._config.device)
         else:
             # Tokenize the input context
-            input_tkns = [
-                self._tokenizer(
-                    merge_conversation(conversation),
-                    padding=True,
-                    add_special_tokens=True,
-                    return_tensors="pt",
-                ).to(self._config.device)
-                for conversation in context
+            merged_context = [
+                merge_conversation(conversation) for conversation in context
             ]
+            input_tkns = self._tokenizer(
+                merged_context,
+                padding=True,
+                add_special_tokens=True,
+                return_tensors="pt",
+            ).to(self._config.device)
 
         # Generate the output tokens
         # The outputs are all appended to a tensor of length len(inputs) * n_samples
