@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import torch
+from lcommon.protocols import Logger
 from lcommon.types import AnnotatedConversation, Context, DType
 from lcommon.utils import (
     Usage,
@@ -14,21 +15,6 @@ from lcommon.utils import (
     merge_conversation,
     merge_system_messages,
 )
-
-try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    # FIX:
-    # from transformers import __version__ as transformers_version
-    #
-    # assert (
-    #     tuple(map(int, transformers_version.split("."))) >= (4, 41)
-    # ), "You must install the `transformers[torch]` package with version >= 4.41 to use the Hugging Face models."
-except ImportError:
-    raise ImportError(
-        "You must install the `transformers[torch] >= 4.41` package to use the Hugging Face models."
-    )
-
-from lcommon.protocols import Logger
 
 from lmodels.model import Model
 
@@ -113,6 +99,16 @@ class HFModel(Model):
         `config`: the configuration for the Hugging Face model.
         [optional] `logger`: the logger to be used, complying with the `Logger` protocol specified in this library.
         """
+
+        try:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            from transformers import __version__ as transformers_version
+
+            assert tuple(map(int, transformers_version.split("."))) >= (4, 41)
+        except (ImportError, AssertionError):
+            raise ImportError(
+                "You must install the `transformers[torch] >= 4.41` package to use the Hugging Face models."
+            )
 
         super().__init__(config, logger)
         self._config: HFModel.Config  # pyright is too dumb to infer this
