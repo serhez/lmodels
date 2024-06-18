@@ -159,7 +159,7 @@ class HFModel(Model):
         return cls.Config
 
     @classproperty
-    def generation_info_cls(cls) -> type[Model.GenerationInfo]:
+    def generation_info_cls(cls) -> type[GenerationInfo]:
         return HFModel.GenerationInfo
 
     def __init__(self, config: Config, logger: Logger | None = None):
