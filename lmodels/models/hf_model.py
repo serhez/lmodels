@@ -162,13 +162,28 @@ class HFModel(Model):
             )
 
     @property
-    def _should_merge_system(self):
+    def _should_merge_system(self) -> bool:
         """
         Whether to merge system messages in the input.
-        This is necessary for some models that do not support system messages.
+        This is necessary for some architectures that do not support system messages.
         """
 
         return True if "mistralai" in self._config.architecture.lower() else False
+
+    @property
+    def _generation_fixes(self) -> dict[str, Any]:
+        """A dictionary of architecture-specific generation arguments to fix issues with the architecture's generation process."""
+
+        # Fixes: https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/discussions/4
+        if self._config.architecture == "meta-llama/Meta-Llama-3-8B-Instruct":
+            return {
+                "eos_token_id": [
+                    self._tokenizer.eos_token_id,
+                    self._tokenizer.convert_tokens_to_ids("<|eot_id|>"),
+                ]
+            }
+
+        return {}
 
     def generate(
         self,
@@ -354,6 +369,7 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             num_beams=n_beams,
             pad_token_id=self._tokenizer.eos_token_id,
+            **self._generation_fixes,
         ).reshape(len(context), n_samples, -1)
 
         # Decode the tokens
