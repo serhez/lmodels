@@ -13,6 +13,7 @@ A common API is used for all available models. This means that, while different 
 - `top_k`: the number of tokens with the highest probability which will be considered when sampling.
 - `top_p`: the cumulative probability threshold for nucleus sampling.
 - `n_beams`: the number of beams to use for beam search.
+- `return_logprobs`: whether to return the log probabilities of the generated tokens.
 
 Any setting can be provided to a model instance, regardless of the specific type of the model; unsupported settings will just be ignored. This enables you to build codebases without having to manage the differences of each model, making "plug and play" possible. Supported settings are documented in the docstrings of the relevant methods for each model class, as well as in the documentation [TODO: link].
 

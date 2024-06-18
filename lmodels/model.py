@@ -160,7 +160,6 @@ class Model(ABC, Provider):
 
         self._usage = value
 
-    # TODO: return logprobs too
     def generate(
         self,
         context: Context,

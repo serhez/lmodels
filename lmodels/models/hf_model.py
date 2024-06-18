@@ -17,6 +17,7 @@ from lcommon.utils import (
 )
 
 from lmodels.model import Model
+from lmodels.utils import concatenate_logprobs
 
 
 class HFModel(Model):
@@ -82,13 +83,84 @@ class HFModel(Model):
         The cache directory is specified by the `HF_HOME` environment variable, or the current directory if not set.
         """
 
+    @dataclass(kw_only=True)
+    class GenerationInfo(Model.GenerationInfo):
+        """The generation information for the Hugging Face model."""
+
+        logprobs: npt.NDArray[np.float_] | None = None
+        """
+        The log probabilities of each token in the output. The shape is `(n_context, n_samples * n_beams, n_tokens)`.
+        For this model, the logprobs are the processed prediction scores, not the raw logits; refer to the Hugging Face docs for more information.
+        The second and third dimensions might be padded with `np.nan` values if each context has a different number of samples and/or output tokens.
+        If the log probabilities are not requested via the `return_logprobs` argument in `generate`, the value is `None`.
+        """
+
+        def __add__(
+            self, other: HFModel.GenerationInfo | None
+        ) -> HFModel.GenerationInfo:
+            if (
+                self.logprobs is not None
+                and other is not None
+                and other.logprobs is not None
+            ):
+                logprobs = concatenate_logprobs(self.logprobs, other.logprobs)
+            elif self.logprobs is not None:
+                logprobs = self.logprobs
+            elif other is not None and other.logprobs is not None:
+                logprobs = other.logprobs
+            else:
+                logprobs = None
+
+            return HFModel.GenerationInfo(
+                usage=self.usage + other.usage if other is not None else self.usage,
+                logprobs=logprobs,
+            )
+
+        def __radd__(
+            self, other: HFModel.GenerationInfo | None
+        ) -> HFModel.GenerationInfo:
+            return self + other
+
+        def __iadd__(
+            self, other: HFModel.GenerationInfo | None
+        ) -> HFModel.GenerationInfo:
+            if (
+                self.logprobs is not None
+                and other is not None
+                and other.logprobs is not None
+            ):
+                self.logprobs = concatenate_logprobs(self.logprobs, other.logprobs)
+            elif other is not None and other.logprobs is not None:
+                self.logprobs = other.logprobs
+
+            if other is not None:
+                self.usage += other.usage
+
+            return self
+
+        def to_json(self) -> dict[str, Any]:
+            """
+            Converts the generation information to a JSON-serializable dictionary.
+
+            ### Returns
+            ----------
+            The JSON-serializable dictionary.
+            """
+
+            return {
+                "usage": self.usage.to_json(),
+                "logprobs": self.logprobs.tolist()
+                if self.logprobs is not None
+                else None,
+            }
+
     @classproperty
     def config_cls(cls) -> type[Config]:
         return cls.Config
 
     @classproperty
     def generation_info_cls(cls) -> type[Model.GenerationInfo]:
-        return cls.GenerationInfo
+        return HFModel.GenerationInfo
 
     def __init__(self, config: Config, logger: Logger | None = None):
         """
@@ -181,8 +253,9 @@ class HFModel(Model):
         top_p: float | None = None,
         n_beams: int | None = None,
         use_context_template: bool = True,
+        return_logprobs: bool = False,
         **kwargs: Any,
-    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+    ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
         """
         Generates the next tokens in the sequence given the context.
 
@@ -217,6 +290,9 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
+        - If requested, the shape of the logprobs array is `(len(context), n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
+        - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
 
         ### Returns
         -------
@@ -236,7 +312,7 @@ class HFModel(Model):
         `AssertionError`: if a context list is provided and it is empty.
         """
 
-        return super().generate(
+        return super().generate(  # type: ignore[reportReturnType]
             context,
             n_samples,
             max_tokens,
@@ -246,6 +322,7 @@ class HFModel(Model):
             top_p=top_p,
             n_beams=n_beams,
             use_context_template=use_context_template,
+            return_logprobs=return_logprobs,
         )
 
     def _generate_batch(
@@ -259,8 +336,9 @@ class HFModel(Model):
         top_p: float | None = None,
         n_beams: int | None = None,
         use_context_template: bool = True,
+        return_logprobs: bool = False,
         **kwargs: Any,
-    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+    ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
         """
         Internal method for generating samples in batches.
 
@@ -283,6 +361,9 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
+        - If requested, the shape of the logprobs array is `(len(context), n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
+        - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
 
         ### Returns
         -------
@@ -342,9 +423,7 @@ class HFModel(Model):
             ).to(self._config.device)
 
         # Generate the output tokens
-        # The outputs are all appended to a tensor of length len(inputs) * n_samples
-        # We want to reshape it to a nested tensor of dimensions (len(inputs), n_samples)
-        output_tkns = self._model.generate(
+        output_obj = self._model.generate(
             **input_tkns,
             max_new_tokens=max_tokens,
             do_sample=do_sample,
@@ -354,7 +433,48 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             num_beams=n_beams,
             pad_token_id=self._tokenizer.eos_token_id,
-        ).reshape(len(context), n_samples, -1)
+            output_scores=return_logprobs,
+            return_dict_in_generate=True,
+        )
+
+        # The outputs are all appended to a tensor of length len(inputs) * n_samples
+        # We want to reshape it to a nested tensor of dimensions (len(inputs), n_samples)
+        output_tkns = output_obj.sequences.reshape(len(context), n_samples, -1)
+
+        if return_logprobs:
+            # `output_obj.scores` is a tuple of tf.Tensor with up to max_new_tokens elements (one element for each generated token),
+            # with each tensor of shape `(batch_size * num_beams * num_return_sequences, vocab_size)`.
+
+            # Transform it to a list of numpy arrays of shape (batch_size, num_beams*num_return_sequences, vocab_size),
+            # where each list corresponds to an output token position.
+            pos_logprobs = []
+            for i in range(len(output_obj.scores)):
+                pos_logprobs.append(
+                    output_obj.scores[i]
+                    .cpu()
+                    .numpy()
+                    .reshape(len(context), n_samples * n_beams, -1)
+                )
+
+            # Transform it to a numpy array of shape `(batch_size, num_beams*num_return_sequences, max_new_tokens)`,
+            # where `batch_size=len(context)`, `num_beams=n_beams`, `num_return_sequences=n_samples` and we only take the logprob
+            # for the token that was chosen (not all the logprobs for each token in the vocab).
+            logprobs = np.array(
+                [
+                    [
+                        [
+                            pos_logprobs[k][i, j, output_tkns[i, j, k]]
+                            if k < len(pos_logprobs)
+                            and len(output_tkns[i, j]) > k
+                            and output_tkns[i, j, k] != self._tokenizer.pad_token_id
+                            else np.nan
+                            for k in range(max_tokens)
+                        ]
+                        for j in range(n_samples * n_beams)
+                    ]
+                    for i in range(len(context))
+                ]
+            )
 
         # Decode the tokens
         inputs = np.array(
@@ -382,7 +502,7 @@ class HFModel(Model):
         )
 
         # Record the generation information
-        info = Model.GenerationInfo(
+        info = HFModel.GenerationInfo(
             usage=Usage(
                 n_calls=len(context),
                 n_tokens_context=sum(
@@ -395,7 +515,8 @@ class HFModel(Model):
                     )
                     for i in range(len(context))
                 ),
-            )
+            ),
+            logprobs=logprobs,
         )
         self.usage += info.usage
 
@@ -429,8 +550,9 @@ class HFModel(Model):
         top_p: float | None = None,
         n_beams: int | None = None,
         use_context_template: bool = True,
+        return_logprobs: bool = False,
         **kwargs: Any,
-    ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
+    ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
         """
         The model's internal implementation of `generate` acting on a single conversation (i.e., list of messages).
 
@@ -453,6 +575,9 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
+        - If requested, the shape of the logprobs array is `(1, n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
+        - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
 
         ### Returns
         -------
@@ -471,6 +596,7 @@ class HFModel(Model):
             top_p=top_p,
             n_beams=n_beams,
             use_context_template=use_context_template,
+            return_logprobs=return_logprobs,
         )
 
         return outputs[0], info

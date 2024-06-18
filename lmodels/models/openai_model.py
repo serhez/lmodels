@@ -7,7 +7,6 @@ from typing import Any
 import httpx
 import numpy as np
 import numpy.typing as npt
-import transformers
 
 try:
     from openai import AzureOpenAI, OpenAI
@@ -15,10 +14,11 @@ except ImportError:
     raise ImportError("You must install the `openai` package to use the OpenAI models.")
 
 from lcommon.protocols import Logger
-from lcommon.types import AnnotatedConversation
+from lcommon.types import AnnotatedConversation, Context
 from lcommon.utils import Usage, classproperty
 
 from lmodels import Model
+from lmodels.utils import concatenate_logprobs
 
 
 class OpenAIModel(Model):
@@ -71,14 +71,35 @@ class OpenAIModel(Model):
         - In such case, only a single `None` is appended to the inner list, hence the length of the inner list will not be equal to the number of requested samples.
         """
 
+        logprobs: npt.NDArray[np.float_] | None = None
+        """
+        The log probabilities of each token in the output. The shape is (`n_context`, `n_samples`, `n_tokens`).
+        The second and third dimensions might be padded with `np.nan` values if each context has a different number of samples and/or output tokens.
+        If the log probabilities are not requested via the `return_logprobs` argument in `generate`, the value is `None`.
+        """
+
         def __add__(
             self, other: OpenAIModel.GenerationInfo | None
         ) -> OpenAIModel.GenerationInfo:
+            if (
+                self.logprobs is not None
+                and other is not None
+                and other.logprobs is not None
+            ):
+                logprobs = concatenate_logprobs(self.logprobs, other.logprobs)
+            elif self.logprobs is not None:
+                logprobs = self.logprobs
+            elif other is not None and other.logprobs is not None:
+                logprobs = other.logprobs
+            else:
+                logprobs = None
+
             return OpenAIModel.GenerationInfo(
                 usage=self.usage + other.usage if other is not None else self.usage,
                 finish_reasons=self.finish_reasons + other.finish_reasons
                 if other is not None
                 else self.finish_reasons + [[None]],
+                logprobs=logprobs,
             )
 
         def __radd__(
@@ -89,6 +110,15 @@ class OpenAIModel(Model):
         def __iadd__(
             self, other: OpenAIModel.GenerationInfo | None
         ) -> OpenAIModel.GenerationInfo:
+            if (
+                self.logprobs is not None
+                and other is not None
+                and other.logprobs is not None
+            ):
+                self.logprobs = concatenate_logprobs(self.logprobs, other.logprobs)
+            elif other is not None and other.logprobs is not None:
+                self.logprobs = other.logprobs
+
             if other is not None:
                 self.usage += other.usage
                 self.finish_reasons += other.finish_reasons
@@ -108,6 +138,9 @@ class OpenAIModel(Model):
             return {
                 "usage": self.usage.to_json(),
                 "finish_reasons": self.finish_reasons,
+                "logprobs": self.logprobs.tolist()
+                if self.logprobs is not None
+                else None,
             }
 
     @classproperty
@@ -169,12 +202,13 @@ class OpenAIModel(Model):
 
     def generate(
         self,
-        context: AnnotatedConversation,
+        context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
+        return_logprobs: bool = False,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -203,6 +237,8 @@ class OpenAIModel(Model):
         - If `None`, the default temperature specified in the model's configuration is used.
         `top_p`: the cumulative probability for nucleus sampling.
         - If `None`, the default cumulative probability specified in the model's configuration is used.
+        `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
+        - If requested, the shape of the logprobs array is `(len(context), n_samples, n_tokens)`. If not requested, the value is `None`.
 
         ### Returns
         -------
@@ -229,6 +265,7 @@ class OpenAIModel(Model):
             architecture=architecture,
             temperature=temperature,
             top_p=top_p,
+            return_logprobs=return_logprobs,
         )
 
     def _generate_single(
@@ -239,6 +276,7 @@ class OpenAIModel(Model):
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
+        return_logprobs: bool = False,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -257,6 +295,8 @@ class OpenAIModel(Model):
         - If `None`, `config.temperature` will be used.
         `top_p`: the cumulative probability for nucleus sampling.
         - If `None`, `config.top_p` will be used.
+        `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
+        - If requested, the shape of the logprobs array is `(1, n_samples, n_tokens)`. If not requested, the value is `None`.
 
         ### Returns
         -------
@@ -281,7 +321,25 @@ class OpenAIModel(Model):
             n=n_samples,
             temperature=temperature,
             top_p=top_p,
+            logprobs=return_logprobs,
         )
+
+        if return_logprobs:
+            logprobs = np.array(
+                [
+                    [
+                        [
+                            c.logprobs.content[i].logprob  # type: ignore[reportOptionalSubscript]
+                            for i in range(len(c.logprobs.content))  # type: ignore[reportArgumentType]
+                        ]
+                        if c.logprobs is not None
+                        else np.nan
+                        for c in output.choices
+                    ]
+                ]
+            )
+        else:
+            logprobs = None
 
         info = OpenAIModel.GenerationInfo(
             usage=Usage(
@@ -296,6 +354,7 @@ class OpenAIModel(Model):
             finish_reasons=[[c.finish_reason for c in output.choices]]
             if output.choices is not None
             else [[]],
+            logprobs=logprobs,
         )
         self.usage += info.usage
 
