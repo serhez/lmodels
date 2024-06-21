@@ -77,6 +77,9 @@ class HFModel(Model):
         n_beams: int = 1
         """The default number of beams to use for beam search."""
 
+        use_context_template: bool = True
+        """The default value of whether to apply an architecture-specific input context template."""
+
         load_from_cache: bool = False
         """
         Whether to load the tokenizer and model weights from a cache directory.
@@ -267,7 +270,7 @@ class HFModel(Model):
         top_k: float | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        use_context_template: bool = True,
+        use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
@@ -304,7 +307,8 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
-        - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        - This corresponds to using the `apply_chat_template` method of the tokenizer.
+        - If `None`, the default value specified in the model's configuration is used.
         `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
         - If requested, the shape of the logprobs array is `(len(context), n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
         - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
@@ -350,7 +354,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        use_context_template: bool = True,
+        use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
@@ -375,7 +379,8 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
-        - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        - This corresponds to using the `apply_chat_template` method of the tokenizer.
+        - If `None`, the default value specified in the model's configuration is used.
         `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
         - If requested, the shape of the logprobs array is `(len(context), n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
         - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
@@ -406,6 +411,8 @@ class HFModel(Model):
             top_p = self._config.top_p
         if n_beams is None:
             n_beams = self._config.n_beams
+        if use_context_template is None:
+            use_context_template = self._config.use_context_template
 
         if np.isclose(temperature, 0.0):
             do_sample = False
@@ -565,7 +572,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        use_context_template: bool = True,
+        use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], HFModel.GenerationInfo]:
@@ -590,7 +597,8 @@ class HFModel(Model):
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
-        - This correspondes to using the `apply_chat_template` method of the tokenizer.
+        - This corresponds to using the `apply_chat_template` method of the tokenizer.
+        - If `None`, the default value specified in the model's configuration is used.
         `return_logprobs`: whether to return the log probabilities of each token in the output as part of the `GenerationInfo`.
         - If requested, the shape of the logprobs array is `(1, n_samples * n_beams, n_tokens)`. If not requested, the value is `None`.
         - The log probabilities for this model correspond to the processed prediction scores, not the raw logits.
