@@ -498,6 +498,8 @@ class HFModel(Model):
                     for i in range(len(context))
                 ]
             )
+        else:
+            logprobs = None
 
         # Decode the tokens
         inputs = np.array(
