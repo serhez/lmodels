@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -76,6 +76,9 @@ class HFModel(Model):
 
         n_beams: int = 1
         """The default number of beams to use for beam search."""
+
+        stop_strings: list[str] = field(default_factory=lambda: list())
+        """The default strings to stop the generation process at."""
 
         use_context_template: bool = True
         """The default value of whether to apply an architecture-specific input context template."""
@@ -270,6 +273,7 @@ class HFModel(Model):
         top_k: float | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -306,6 +310,8 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
         - If `None`, the default value specified in the model's configuration is used.
@@ -340,6 +346,7 @@ class HFModel(Model):
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
+            stop_strings=stop_strings,
             use_context_template=use_context_template,
             return_logprobs=return_logprobs,
         )
@@ -354,6 +361,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -377,6 +385,8 @@ class HFModel(Model):
         `top_p`: the cumulative probability threshold for nucleus sampling.
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
+        - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
@@ -411,6 +421,8 @@ class HFModel(Model):
             top_p = self._config.top_p
         if n_beams is None:
             n_beams = self._config.n_beams
+        if stop_strings is None:
+            stop_strings = self._config.stop_strings
         if use_context_template is None:
             use_context_template = self._config.use_context_template
 
@@ -455,6 +467,7 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             num_beams=n_beams,
             pad_token_id=self._tokenizer.eos_token_id,
+            stop_strings=self._config.stop_strings,
             output_scores=return_logprobs,
             return_dict_in_generate=True,
             **self._generation_fixes,
@@ -574,6 +587,7 @@ class HFModel(Model):
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
+        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -598,6 +612,8 @@ class HFModel(Model):
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
         - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
         - If `None`, the default value specified in the model's configuration is used.
@@ -621,6 +637,7 @@ class HFModel(Model):
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
+            stop_strings=stop_strings,
             use_context_template=use_context_template,
             return_logprobs=return_logprobs,
         )
