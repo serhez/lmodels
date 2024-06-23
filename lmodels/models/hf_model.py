@@ -217,7 +217,6 @@ class HFModel(Model):
         self._model = AutoModelForCausalLM.from_pretrained(
             config.architecture,
             token=api_token,
-            tokenizer=self._tokenizer,
             torch_dtype=config.dtype.torch,
             attn_implementation=config.attention_type,
             device_map="auto",
@@ -460,6 +459,7 @@ class HFModel(Model):
         # Generate the output tokens
         output_obj = self._model.generate(
             **input_tkns,
+            tokenizer=self._tokenizer,
             max_new_tokens=max_tokens,
             do_sample=do_sample,
             temperature=temperature,
