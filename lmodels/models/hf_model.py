@@ -217,6 +217,7 @@ class HFModel(Model):
         self._model = AutoModelForCausalLM.from_pretrained(
             config.architecture,
             token=api_token,
+            tokenizer=self._tokenizer,
             torch_dtype=config.dtype.torch,
             attn_implementation=config.attention_type,
             device_map="auto",
