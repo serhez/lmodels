@@ -456,6 +456,11 @@ class HFModel(Model):
                 return_tensors="pt",
             ).to(self._config.device)
 
+        # Extra arguments that shall only be passed if they are meaningful
+        extra_args = {}
+        if stop_strings:
+            extra_args["stop_strings"] = stop_strings
+
         # Generate the output tokens
         output_obj = self._model.generate(
             **input_tkns,
@@ -468,9 +473,9 @@ class HFModel(Model):
             num_return_sequences=n_samples,
             num_beams=n_beams,
             pad_token_id=self._tokenizer.eos_token_id,
-            stop_strings=self._config.stop_strings,
             output_scores=return_logprobs,
             return_dict_in_generate=True,
+            **extra_args,
             **self._generation_fixes,
         )
 
