@@ -25,6 +25,11 @@ def concatenate_logprobs(
     n_context_first, n_samples_first, n_tokens_first = first.shape
     n_context_second, n_samples_second, n_tokens_second = second.shape
 
+    print("DEBUGGING:")
+    print(first.shape, second.shape)
+    print(n_context_first, n_samples_first, n_tokens_first)
+    print(n_context_second, n_samples_second, n_tokens_second)
+
     n_samples = max(n_samples_first, n_samples_second)
     n_tokens = max(n_tokens_first, n_tokens_second)
 
