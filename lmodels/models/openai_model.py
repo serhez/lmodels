@@ -376,6 +376,20 @@ class OpenAIModel(Model):
             ]
         )
 
+        self._logger.debug(
+            {
+                "[OpenAIModel.generate]": None,
+                "Context": context,
+                "Architecture": architecture,
+                "Outputs": output,
+                "N. samples": n_samples,
+                "Max. tokens": max_tokens,
+                "Temperature": temperature,
+                "Top p": top_p,
+                "Info": info,
+            }
+        )
+
         return output, info
 
     def fine_tune(self, _):
