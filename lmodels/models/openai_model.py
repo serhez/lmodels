@@ -71,7 +71,7 @@ class OpenAIModel(Model):
         - In such case, only a single `None` is appended to the inner list, hence the length of the inner list will not be equal to the number of requested samples.
         """
 
-        logprobs: npt.NDArray[np.float_] | None = None
+        logprobs: npt.NDArray[np.float64] | None = None
         """
         The log probabilities of each token in the output. The shape is (`n_context`, `n_samples`, `n_tokens`).
         The second and third dimensions might be padded with `np.nan` values if each context has a different number of samples and/or output tokens.

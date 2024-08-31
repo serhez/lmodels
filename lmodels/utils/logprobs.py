@@ -3,8 +3,8 @@ import numpy.typing as npt
 
 
 def concatenate_logprobs(
-    first: npt.NDArray[np.float_], second: npt.NDArray[np.float_]
-) -> npt.NDArray[np.float_]:
+    first: npt.NDArray[np.float64], second: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
     """
     Concatenates two arrays of logprobs across the first dimension.
 

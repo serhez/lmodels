@@ -93,7 +93,7 @@ class HFModel(Model):
     class GenerationInfo(Model.GenerationInfo):
         """The generation information for the Hugging Face model."""
 
-        logprobs: npt.NDArray[np.float_] | None = None
+        logprobs: npt.NDArray[np.float64] | None = None
         """
         The log probabilities of each token in the output. The shape is `(n_context, n_samples * n_beams, n_tokens)`.
         For this model, the logprobs are the processed prediction scores, not the raw logits; refer to the Hugging Face docs for more information.
