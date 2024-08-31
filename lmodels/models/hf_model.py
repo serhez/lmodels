@@ -491,12 +491,14 @@ class HFModel(Model):
             # where each list corresponds to an output token position.
             pos_logprobs = []
             for i in range(len(output_obj.scores)):
-                pos_logprobs.append(
+                logprobs = (
                     output_obj.scores[i]
                     .cpu()
                     .numpy()
                     .reshape(len(context), n_samples * n_beams, -1)
                 )
+                logprobs = np.where(np.isnan(logprobs), 0.0, logprobs)
+                pos_logprobs.append(logprobs)
 
             # Transform it to a numpy array of shape `(batch_size, num_beams*num_return_sequences, max_new_tokens)`,
             # where `batch_size=len(context)`, `num_beams=n_beams`, `num_return_sequences=n_samples` and we only take the logprob
