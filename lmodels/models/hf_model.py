@@ -97,7 +97,7 @@ class HFModel(Model):
         """
         The log probabilities of each token in the output. The shape is `(n_context, n_samples * n_beams, n_tokens)`.
         For this model, the logprobs are the processed prediction scores, not the raw logits; refer to the Hugging Face docs for more information.
-        The second and third dimensions might be padded with `np.nan` values if each context has a different number of samples and/or output tokens.
+        The second and third dimensions might be padded with `0.0` values if each context has a different number of samples and/or output tokens.
         If the log probabilities are not requested via the `return_logprobs` argument in `generate`, the value is `None`.
         """
 
@@ -511,7 +511,7 @@ class HFModel(Model):
                             if k < len(pos_logprobs)
                             and len(output_tkns[i, j]) > k
                             and output_tkns[i, j, k] != self._tokenizer.pad_token_id
-                            else np.nan
+                            else 0.0
                             for k in range(max_tokens)
                         ]
                         for j in range(n_samples * n_beams)
