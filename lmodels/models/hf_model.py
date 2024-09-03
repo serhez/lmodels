@@ -258,6 +258,10 @@ class HFModel(Model):
                 ]
             }
 
+        # Fixes: https://github.com/huggingface/transformers/issues/31030
+        if self._config.architecture == "meta-llama/Meta-Llama-3-70B-Instruct":
+            return {"eos_token_id": [198]}
+
         return {}
 
     def generate(
