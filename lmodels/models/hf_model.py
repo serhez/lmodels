@@ -77,9 +77,6 @@ class HFModel(Model):
         n_beams: int = 1
         """The default number of beams to use for beam search."""
 
-        stop_strings: list[str] = field(default_factory=lambda: list())
-        """The default strings to stop the generation process at."""
-
         use_context_template: bool = True
         """The default value of whether to apply an architecture-specific input context template."""
 
@@ -268,12 +265,12 @@ class HFModel(Model):
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         temperature: float | None = None,
         do_sample: str | None = None,
         top_k: float | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -295,10 +292,12 @@ class HFModel(Model):
         ### Parameters
         ----------
         `context`: the context to generate from.
-        `max_tokens`: the maximum number of tokens to generate per context string.
-        - If `None`, the default value specified in the model's configuration is used.
         `n_samples`: the number of samples to generate for each context string.
         - If `None`, the default number of samples specified in the model's configuration is used.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `temperature`: the temperature to use when sampling from the model's output.
         - It must be greater than 0.0. For deterministic outputs, set `do_sample = False`.
         - If `None`, the default value specified in the model's configuration is used.
@@ -309,8 +308,6 @@ class HFModel(Model):
         `top_p`: the cumulative probability threshold for nucleus sampling.
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
-        - If `None`, the default value specified in the model's configuration is used.
-        `stop_strings`: the strings to stop the generation process at.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
@@ -341,12 +338,12 @@ class HFModel(Model):
             context,
             n_samples,
             max_tokens,
+            stop_strings=stop_strings,
             temperature=temperature,
             do_sample=do_sample,
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
-            stop_strings=stop_strings,
             use_context_template=use_context_template,
             return_logprobs=return_logprobs,
         )
@@ -356,12 +353,12 @@ class HFModel(Model):
         context: list[AnnotatedConversation],
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         temperature: float | None = None,
         do_sample: bool | None = None,
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -372,10 +369,12 @@ class HFModel(Model):
         ### Parameters
         ----------
         `context`: the context to generate from.
-        `max_tokens`: the maximum number of tokens to generate per context string.
-        - If `None`, the default value specified in the model's configuration is used.
         `n_samples`: the number of samples to generate for each context string.
         - If `None`, the default number of samples specified in the model's configuration is used.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `temperature`: the temperature to use when sampling from the model's output.
         - If `None`, the default value specified in the model's configuration is used.
         `do_sample`: whether to sample from the model's output.
@@ -385,8 +384,6 @@ class HFModel(Model):
         `top_p`: the cumulative probability threshold for nucleus sampling.
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
-        - If `None`, the default value specified in the model's configuration is used.
-        `stop_strings`: the strings to stop the generation process at.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
@@ -574,6 +571,7 @@ class HFModel(Model):
                 "Outputs": outputs,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
+                "Stop strings": stop_strings,
                 "Temperature": temperature,
                 "Do sample": do_sample,
                 "Top k": top_k,
@@ -590,12 +588,12 @@ class HFModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         temperature: float | None = None,
         do_sample: bool | None = None,
         top_k: int | None = None,
         top_p: float | None = None,
         n_beams: int | None = None,
-        stop_strings: list[str] | None = None,
         use_context_template: bool | None = None,
         return_logprobs: bool = False,
         **kwargs: Any,
@@ -610,6 +608,8 @@ class HFModel(Model):
         `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `config.max_tokens` will be used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `temperature`: the temperature to use when sampling from the model's output.
         - If `None`, `config.temperature` will be used.
         `do_sample`: whether to sample from the model's output.
@@ -619,8 +619,6 @@ class HFModel(Model):
         `top_p`: the cumulative probability threshold for nucleus sampling.
         - If `None`, the default value specified in the model's configuration is used.
         `n_beams`: the number of beams to use for beam search.
-        - If `None`, the default value specified in the model's configuration is used.
-        `stop_strings`: the strings to stop the generation process at.
         - If `None`, the default value specified in the model's configuration is used.
         `use_context_template`: whether to apply an architecture-specific input context template, if available.
         - This corresponds to using the `apply_chat_template` method of the tokenizer.
@@ -640,12 +638,12 @@ class HFModel(Model):
             [context],
             n_samples,
             max_tokens,
+            stop_strings=stop_strings,
             temperature=temperature,
             do_sample=do_sample,
             top_k=top_k,
             top_p=top_p,
             n_beams=n_beams,
-            stop_strings=stop_strings,
             use_context_template=use_context_template,
             return_logprobs=return_logprobs,
         )

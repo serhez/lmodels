@@ -205,6 +205,7 @@ class OpenAIModel(Model):
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
@@ -228,9 +229,12 @@ class OpenAIModel(Model):
         ### Parameters
         ----------
         `context`: the context to generate from.
-        `max_tokens`: the maximum number of tokens to generate per context string.
         `n_samples`: the number of samples to generate for each context string.
         - If `None`, the default number of samples specified in the model's configuration is used.
+        `max_tokens`: the maximum number of tokens to generate per context string.
+        - If `None`, the default value specified in the model's configuration is used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         `architecture`: the name of the model architecture to use.
         - If `None`, the default architecture specified in the model's configuration is used.
         `temperature`: the temperature for sampling from the model.
@@ -262,6 +266,7 @@ class OpenAIModel(Model):
             context,
             n_samples,
             max_tokens,
+            stop_strings=stop_strings,
             architecture=architecture,
             temperature=temperature,
             top_p=top_p,
@@ -273,6 +278,7 @@ class OpenAIModel(Model):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         architecture: str | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
@@ -289,6 +295,8 @@ class OpenAIModel(Model):
         `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `config.max_tokens` will be used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, `config.stop_strings` will be used.
         `architecture`: the name of the model architecture to use.
         - If `None`, `config.architecture` will be used.
         `temperature`: the temperature for sampling from the model.
@@ -313,6 +321,13 @@ class OpenAIModel(Model):
             temperature = self._config.temperature
         if top_p is None:
             top_p = self._config.top_p
+        if stop_strings is None:
+            stop_strings = self._config.stop_strings
+
+        # Extra arguments that shall only be passed if they are meaningful
+        extra_args = {}
+        if stop_strings:
+            extra_args["stop"] = stop_strings
 
         output = self._client.chat.completions.create(
             messages=context,  # type: ignore[reportArgumentType]
@@ -322,6 +337,7 @@ class OpenAIModel(Model):
             temperature=temperature,
             top_p=top_p,
             logprobs=return_logprobs,
+            **extra_args,
         )
 
         if return_logprobs:
@@ -384,6 +400,7 @@ class OpenAIModel(Model):
                 "Outputs": output,
                 "N. samples": n_samples,
                 "Max. tokens": max_tokens,
+                "Stop strings": stop_strings,
                 "Temperature": temperature,
                 "Top p": top_p,
                 "Info": info,

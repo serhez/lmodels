@@ -40,6 +40,9 @@ class Model(ABC, Provider):
         It can be set to `None` to disable the safeguard.
         """
 
+        stop_strings: list[str] = field(default_factory=lambda: list())
+        """The default strings to stop the generation process at."""
+
     @dataclass(kw_only=True)
     class GenerationInfo:
         """Extra information about the generation process of the model."""
@@ -165,6 +168,7 @@ class Model(ABC, Provider):
         context: Context,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -187,6 +191,8 @@ class Model(ABC, Provider):
         `n_samples`: the number of samples to generate for each context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `Config.max_tokens` will be used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         Other model-specific arguments may be passed; check each model's documentation for more information.
 
         ### Returns
@@ -231,6 +237,7 @@ class Model(ABC, Provider):
                     single_context,
                     n_samples=n_samples,
                     max_tokens=max_tokens,
+                    stop_strings=stop_strings or self._config.stop_strings,
                     **kwargs,
                 )
                 outputs.append(output)
@@ -245,6 +252,7 @@ class Model(ABC, Provider):
                 batch_context,
                 n_samples=n_samples,
                 max_tokens=max_tokens,
+                stop_strings=stop_strings or self._config.stop_strings,
                 **kwargs,
             )
             outputs.append(batch_outputs)
@@ -262,6 +270,7 @@ class Model(ABC, Provider):
         context: list[AnnotatedConversation],
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -274,6 +283,8 @@ class Model(ABC, Provider):
         `n_samples`: the number of samples to generate for each context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `Config.max_tokens` will be used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         Other keyword arguments can be passed to the model's generation method, given the specific model.
 
         ### Returns
@@ -291,7 +302,11 @@ class Model(ABC, Provider):
         outputs, ind_info = zip(
             *[
                 self._generate_single(
-                    input, n_samples=n_samples, max_tokens=max_tokens, **kwargs
+                    input,
+                    n_samples=n_samples,
+                    max_tokens=max_tokens,
+                    stop_strings=stop_strings,
+                    **kwargs,
                 )
                 for input in context
             ]
@@ -321,6 +336,7 @@ class Model(ABC, Provider):
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         **kwargs,
     ) -> tuple[npt.NDArray[np.str_], GenerationInfo]:
         """
@@ -333,6 +349,8 @@ class Model(ABC, Provider):
         `n_samples`: the number of samples to generate for the context string.
         `max_tokens`: the maximum number of tokens to generate per context string.
         - If `None`, `Config.max_tokens` will be used.
+        `stop_strings`: the strings to stop the generation process at.
+        - If `None`, the default value specified in the model's configuration is used.
         Other keyword arguments can be passed to the model's generation method, given the specific model.
 
         ### Returns

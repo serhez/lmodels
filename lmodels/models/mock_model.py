@@ -156,15 +156,25 @@ class MockModel(Model):
             except FileNotFoundError:
                 pass
 
+    @classmethod
+    def _clip_output(cls, text: str, stop_strings: list[str]) -> str:
+        for stop_string in stop_strings:
+            if stop_string in text:
+                return text.split(stop_string)[0] + stop_string
+        return text
+
     def _generate_single(
         self,
         context: AnnotatedConversation,
         n_samples: int = 1,
         max_tokens: int | None = None,
+        stop_strings: list[str] | None = None,
         **kwargs: Any,
     ) -> tuple[npt.NDArray[np.str_], Model.GenerationInfo]:
         if max_tokens is None:
             max_tokens = self._config.max_tokens
+        if stop_strings is None:
+            stop_strings = self._config.stop_strings
 
         input = "\n".join([message["content"] for message in context])
         output = None
@@ -174,10 +184,13 @@ class MockModel(Model):
             if re.match(response.context, input):
                 output = np.array(
                     [
-                        np.random.choice(
-                            [output for output, _ in response.outputs],
-                            p=[prob for _, prob in response.outputs],
-                        )[:max_tokens]
+                        self._clip_output(
+                            np.random.choice(
+                                [output for output, _ in response.outputs],
+                                p=[prob for _, prob in response.outputs],
+                            )[:max_tokens],
+                            stop_strings,
+                        )
                         for _ in range(n_samples)
                     ]
                 )
@@ -186,10 +199,13 @@ class MockModel(Model):
         if output is None and self._config.responses.default:
             output = np.array(
                 [
-                    np.random.choice(
-                        [output for output, _ in self._config.responses.default],
-                        p=[prob for _, prob in self._config.responses.default],
-                    )[:max_tokens]
+                    self._clip_output(
+                        np.random.choice(
+                            [output for output, _ in self._config.responses.default],
+                            p=[prob for _, prob in self._config.responses.default],
+                        )[:max_tokens],
+                        stop_strings,
+                    )
                     for _ in range(n_samples)
                 ]
             )
@@ -202,7 +218,10 @@ class MockModel(Model):
                 ]  # Remove the newline character
             output = np.array(
                 [
-                    " ".join(np.random.choice(words, size=max_tokens))
+                    self._clip_output(
+                        " ".join(np.random.choice(words, size=max_tokens)),
+                        stop_strings,
+                    )
                     for _ in range(n_samples)
                 ]
             )
