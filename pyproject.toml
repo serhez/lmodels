@@ -7,7 +7,7 @@ allow-direct-references = true # can be removed if the packages are published on
 
 [project]
 name = "lmodels"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     { name = "Sergio Hernandez Gutierrez", email = "contact.sergiohernandez@gmail.com" },
 ]
@@ -21,6 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "httpx",
+    "evaluate",
     "numpy",
     "omegaconf",
     "requests",
