@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, overload
 
+import evaluate
 import numpy as np
 import numpy.typing as npt
 import torch
-from lcommon.protocols import Logger
+from lcommon.protocols import Dataset, Logger
 from lcommon.types import AnnotatedConversation, Context, DType
 from lcommon.utils import (
     Usage,
@@ -15,6 +16,8 @@ from lcommon.utils import (
     merge_conversation,
     merge_system_messages,
 )
+from torch.utils.data import IterableDataset
+from transformers import Trainer, TrainingArguments
 
 from lmodels.model import Model
 from lmodels.utils import concatenate_logprobs
@@ -188,9 +191,9 @@ class HFModel(Model):
         super().__init__(config, logger)
         self._config: HFModel.Config  # pyright is too dumb to infer this
 
-        assert (
-            "HF_API_TOKEN" in os.environ
-        ), "You must set the `HF_API_TOKEN` environment variable to use the Hugging Face models."
+        assert "HF_API_TOKEN" in os.environ, (
+            "You must set the `HF_API_TOKEN` environment variable to use the Hugging Face models."
+        )
         api_token = os.environ["HF_API_TOKEN"]
 
         if not config.load_from_cache:
@@ -654,7 +657,37 @@ class HFModel(Model):
 
         return outputs[0], info
 
-    def fine_tune(self, _):
-        raise NotImplementedError(
-            "Fine-tuning is not supported for the Hugging Face model."
+    @overload
+    def fine_tune(
+        self,
+        train_dataset: IterableDataset,
+        eval_dataset: IterableDataset,
+        output_dir: str,
+    ): ...
+
+    @overload
+    def fine_tune(self, dataset: Dataset, output_dir: str): ...
+
+    def fine_tune(self, *args: Any, **_):
+        if len(args) == 2:
+            train_dataset = args[0].train_set.to_pytorch()
+            eval_dataset = args[0].test_set.to_pytorch()
+            output_dir = args[1]
+        else:
+            train_dataset, eval_dataset, output_dir = args
+
+        training_args = TrainingArguments(output_dir=output_dir, eval_strategy="epoch")
+
+        metric = evaluate.load("accuracy")
+
+        trainer = Trainer(
+            model=self._model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            compute_metrics=lambda eval_pred: metric.compute(
+                predictions=np.argmax(eval_pred.predictions, axis=-1),
+                references=eval_pred.label_ids,
+            ),
         )
+        trainer.train()
